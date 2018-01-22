@@ -19,5 +19,4 @@ void ImageListener(const sensor_msgs::ImageConstPtr& msg);
 // Receive the Bounding Boxes from Yolo and process then
 void BoundingBoxListener(darknet_ros_msgs::BoundingBoxes msg);
 
-
 #endif //PROJECT_WM_DATA_COLLECTOR_NODE_H
