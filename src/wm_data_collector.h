@@ -9,12 +9,15 @@
 #include "std_msgs/String.h"
 #include "sensor_msgs/Image.h"
 #include "darknet_ros_msgs/BoundingBoxes.h"
+#include "wm_data_collector/BoundingBox.h"
+#include "wm_color_detector/AnalyseColor.h"
 
+#include "CDataEntity.h"
 
 #include <sstream>
 
-// Receive the images from camera
-void ImageListener(const sensor_msgs::ImageConstPtr& msg);
+// Receive an image from camera
+void ImageListener(sensor_msgs::ImageConstPtr msg);
 
 // Receive the Bounding Boxes from Yolo and process then
 void BoundingBoxListener(darknet_ros_msgs::BoundingBoxes msg);
