@@ -60,7 +60,8 @@ void BoundingBoxListener(darknet_ros_msgs::BoundingBoxes msg){
 			dataEntities.push_back(anEntity);
 			boxes.push_back(anEntity.getBox());
 		} else {
-			ROS_WARN("Bad Bounding Box coordinate given! (%ix%i to %ix%i)", boundingBox.xmin, boundingBox.ymin,
+			ROS_WARN("Bad Bounding Box coordinate given! (%s in %ix%i to %ix%i)", boundingBox.Class.c_str(),
+			         boundingBox.xmin, boundingBox.ymin,
 			         boundingBox.xmax, boundingBox.ymax);
 			ROS_WARN("Bounding Box will be ignored.");
 		}
