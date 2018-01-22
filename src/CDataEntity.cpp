@@ -3,6 +3,7 @@
 //
 
 #include "CDataEntity.h"
+
 /**
  * Initialise a DataEntity object with a bounding box
  * @param xmin	abscissa of the first point of the bounding box
@@ -43,9 +44,11 @@ bool CDataEntity::setBoundingBox(const int xmin, const int ymin, const int xmax,
 	return this->BoundingBoxInitialised;
 }
 
-
+/**
+ * Print all the data about the entity
+ */
 void CDataEntity::printEntity() {
-	std::cout << name << "(" << color << ")" << " : " << box.xmin << "x" << box.ymin << " to " << box.xmax << "x" << box.ymax << " " << std::endl;
+	ROS_INFO("%s (%s) : %ix%i to %ix%i", name.c_str(), color.c_str(), box.xmin, box.ymin, box.xmax, box.ymax);
 }
 
 /** --- --- --- --- GETTERS --- --- --- --- **/
