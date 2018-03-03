@@ -1,3 +1,4 @@
+std_msgs/Time lastUpdateTime
 std_msgs/Int64 ID
 std_msgs/String name
 std_msgs/String color

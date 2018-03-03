@@ -8,11 +8,14 @@
 #include "ros/ros.h"
 #include <sstream>
 #include "wm_color_detector/BoundingBox.h"
+//#include "wm_data_collector/BoundingBox.h"
+
 
 class CDataEntity {
 public:
-	CDataEntity(const int xmin, const int ymin, const int xmax, const int ymax, const std::string name);
+	CDataEntity();
 	bool setBoundingBox(int xmin, int ymin, int xmax, int ymax);
+	bool setName(std::string);
 	void printEntity();
 	void setColor(const std::string &color);
 	bool isBoundingBoxInitialised() const;

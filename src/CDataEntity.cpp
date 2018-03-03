@@ -11,11 +11,10 @@
  * @param xmax	abscissa of the last point of the bounding box
  * @param ymax	ordinate of the last point of the bounding box
  */
-CDataEntity::CDataEntity(const int xmin, const int ymin, const int xmax, const int ymax, const std::string name) {
+CDataEntity::CDataEntity() {
 	this->BoundingBoxInitialised = false;
 	this->name = name;
 	this->color = "unknown";
-	setBoundingBox(xmin, ymin, xmax, ymax);
 }
 
 /**
@@ -28,7 +27,7 @@ CDataEntity::CDataEntity(const int xmin, const int ymin, const int xmax, const i
  */
 bool CDataEntity::setBoundingBox(const int xmin, const int ymin, const int xmax, const int ymax) {
 	// Test if the bounding box is a correct bounding box.
-	if ((xmax - xmin) > 0 && (ymax - ymin) > 0 && xmin >= 0 && ymin >= 0 && xmax > 0 && ymax > 0) {
+	if (xmax > xmin && ymax > ymin) {
 		this->BoundingBoxInitialised = true;
 		this->box.xmin = xmin;
 		this->box.ymin = ymin;

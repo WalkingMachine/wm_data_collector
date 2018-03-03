@@ -11,6 +11,7 @@
 #include "darknet_ros_msgs/BoundingBoxes.h"
 #include "wm_data_collector/BoundingBox.h"
 #include "wm_color_detector/AnalyseColor.h"
+#include "EntityWraper.h"
 
 #include "CDataEntity.h"
 

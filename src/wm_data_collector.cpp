@@ -5,7 +5,8 @@
 #include "wm_data_collector.h"
 
 sensor_msgs::ImageConstPtr lastImage;
-ros::ServiceClient client;
+ros::ServiceClient colorClient;
+ros::ServiceClient positionClient;
 
 std::string _CAMERA_TOPIC;
 std::string _YOLO_TOPIC;
@@ -28,7 +29,8 @@ int main(int argc, char **argv) {
 	ros::Subscriber BoxesSubscriber = n.subscribe(_YOLO_TOPIC, 1, BoundingBoxListener);
 
 
-	client = n.serviceClient<wm_color_detector::AnalyseColor>("get_bounding_boxes_color");
+	colorClient = n.serviceClient<wm_color_detector::AnalyseColor>("get_bounding_boxes_color");
+    positionClient = n.serviceClient<wm_color_detector::AnalyseColor>("get_3d_bounding_boxes");
 
 	// Waiting for events...
 	ros::spin();
@@ -47,47 +49,52 @@ void ImageListener(sensor_msgs::ImageConstPtr msg) {
 void BoundingBoxListener(darknet_ros_msgs::BoundingBoxes msg){
 	ROS_INFO("BoundingBoxes received! (%i)", (int) msg.boundingBoxes.size());
 
-	sensor_msgs::ImageConstPtr image = lastImage;
 
-	std::vector<CDataEntity> dataEntities;
-	std::vector<wm_color_detector::BoundingBox> boxes;
 
-	for (auto &boundingBox : msg.boundingBoxes) {
+//
+//	sensor_msgs::ImageConstPtr image = lastImage;
+//
+//	std::vector<CDataEntity> dataEntities();
+//	std::vector<wm_color_detector::BoundingBox> boxes;
 
-		CDataEntity anEntity(boundingBox.xmin, boundingBox.ymin, boundingBox.xmax, boundingBox.ymax, boundingBox.Class);
-
-		if (anEntity.isBoundingBoxInitialised()) {
-			dataEntities.push_back(anEntity);
-			boxes.push_back(anEntity.getBox());
-		} else {
-			ROS_WARN("Bad Bounding Box coordinate given! (%s in %ix%i to %ix%i)", boundingBox.Class.c_str(),
-			         boundingBox.xmin, boundingBox.ymin,
-			         boundingBox.xmax, boundingBox.ymax);
-			ROS_WARN("Bounding Box will be ignored.");
-		}
-	}
-
-	// Color Recognition Call
-	wm_color_detector::AnalyseColor srv;
-	srv.request.boundingBoxes = boxes;
-	srv.request.image = *image;
-
-	// If the service work and the number of returned element is good
-	if (client.call(srv) && srv.response.colors.size() == dataEntities.size()) {
-		for (int index = 0; index < dataEntities.size(); index++) {
-			dataEntities[index].setColor(srv.response.colors[index].color);
-		}
-	} else {
-		ROS_WARN("An error occurred with Color Recognition!");
-	}
-
-	//TODO:Leg Detection Call
-	//TODO:3Pose Call
-	//TODO:Face Recognition Call
-	//TODO:Gender Recognition Call
-
-	// Print the entities list
-	for (auto &dataEntity : dataEntities) {
-		dataEntity.printEntity();
-	}
+//	for (auto &boundingBox : msg.boundingBoxes) {
+//
+//		CDataEntity* anEntity{new(CDataEntity)};
+//        anEntity->setBoundingBox(boundingBox.xmin, boundingBox.ymin, boundingBox.xmax, boundingBox.ymax);
+//        anEntity->setName(boundingBox.Class);
+//		if (anEntity->isBoundingBoxInitialised()) {
+//			dataEntities.push_back(anEntity);
+//			boxes.push_back(anEntity->getBox());
+//		} else {
+//			ROS_WARN("Bad Bounding Box coordinate given! (%s in %ix%i to %ix%i)", boundingBox.Class.c_str(),
+//			         boundingBox.xmin, boundingBox.ymin,
+//			         boundingBox.xmax, boundingBox.ymax);
+//			ROS_WARN("Bounding Box will be ignored.");
+//		}
+//	}
+//
+//	// Color Recognition Call
+//	wm_color_detector::AnalyseColor srv;
+//	srv.request.boundingBoxes = boxes;
+//	srv.request.image = *image;
+//
+//	// If the service work and the number of returned element is good
+//	if (colorClient.call(srv) && srv.response.colors.size() == dataEntities.size()) {
+//		for (int index = 0; index < dataEntities.size(); index++) {
+//			dataEntities[index].setColor(srv.response.colors[index].color);
+//		}
+//	} else {
+//		ROS_WARN("An error occurred with Color Recognition!");
+//	}
+//
+//	//TODO:Leg Detection Call
+//	//TODO:3Pose Call
+//	//TODO:Face Recognition Call
+//	//TODO:Gender Recognition Call
+//
+//	// Print the entities list
+//	for (auto &dataEntity : dataEntities) {
+//		dataEntity.printEntity();
+//	}
 }
+
