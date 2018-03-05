@@ -73,10 +73,10 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
 
 
     // Create the entities from the bounding boxes
-    std::vector<wm_data_collector::entity> Entities;
+    std::vector<sara_msgs::entity> Entities;
     int i{0};
     for (auto &boundingBox : BoundingBoxes3D) {
-        wm_data_collector::entity en;
+        sara_msgs::entity en;
         en.BoundingBox = boundingBox;
         en.name = boundingBox.Class;
         en.position = boundingBox.Center;

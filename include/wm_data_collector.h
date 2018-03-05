@@ -12,7 +12,7 @@
 #include "darknet_ros_msgs/BoundingBoxes.h"
 #include "sara_msgs/BoundingBox2D.h"
 #include "wm_frame_to_box/GetBoundingBoxes3D.h"
-#include "wm_data_collector/entity.h"
+#include "sara_msgs/entity.h"
 
 
 #include <sstream>
