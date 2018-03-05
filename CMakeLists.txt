@@ -9,9 +9,9 @@ add_compile_options(-std=c++11)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
         roscpp
-        std_msgs
         sensor_msgs
         darknet_ros_msgs
+        sara_msgs
         message_generation
 )
 
@@ -51,8 +51,6 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
         FILES
-        BoundingBox.msg
-        Coloration.msg
         entity.msg
 )
 
@@ -76,6 +74,7 @@ generate_messages(
         std_msgs
         geometry_msgs
         sensor_msgs
+        sara_msgs
 )
 
 
@@ -91,7 +90,6 @@ generate_messages(
 catkin_package(
         CATKIN_DEPENDS
         roscpp
-        std_msgs
         sensor_msgs
         darknet_ros_msgs
         wm_color_detector
@@ -113,9 +111,7 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(${PROJECT_NAME}_node
         src/wm_data_collector.cpp
-        src/EntityWraper.cpp
-        src/CDataEntity.cpp
-)
+        )
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above

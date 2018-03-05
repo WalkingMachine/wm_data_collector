@@ -1,9 +1,10 @@
-std_msgs/Time lastUpdateTime
-std_msgs/Int64 ID
-std_msgs/String name
-std_msgs/String color
+time lastUpdateTime
+int64 ID
+string name
+string color
 geometry_msgs/Point position
-std_msgs/Float32 direction
+sara_msgs/BoundingBox3D BoundingBox
+float32 direction
 geometry_msgs/Point velocity
-std_msgs/String gender
-std_msgs/String emotion
+string gender
+string emotion
