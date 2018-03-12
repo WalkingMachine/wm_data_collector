@@ -12,7 +12,8 @@
 #include "darknet_ros_msgs/BoundingBoxes.h"
 #include "sara_msgs/BoundingBox2D.h"
 #include "wm_frame_to_box/GetBoundingBoxes3D.h"
-#include "sara_msgs/entity.h"
+#include "sara_msgs/Entity.h"
+#include "sara_msgs/Entities.h"
 
 
 #include <sstream>
@@ -23,6 +24,7 @@ class DataCollector {
     ros::ServiceClient colorClient;
     ros::ServiceClient positionClient;
     sensor_msgs::ImageConstPtr Image;
+    ros::Publisher entityPublisher;
 
 // Receive an image from camera
     void ImageCallback(sensor_msgs::ImageConstPtr msg);

@@ -29,6 +29,7 @@ DataCollector::DataCollector(int argc, char **argv) {
 
     colorClient = nh.serviceClient<wm_color_detector::AnalyseColor>("get_bounding_boxes_color");
     positionClient = nh.serviceClient<wm_frame_to_box::GetBoundingBoxes3D>("get_3d_bounding_boxes");
+    nh.advertise<sara_msgs::Entities>( "/entities", 10 );
 
     // Waiting for events...
     ros::spin();
@@ -73,30 +74,28 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
 
 
     // Create the entities from the bounding boxes
-    std::vector<sara_msgs::entity> Entities;
+    sara_msgs::Entities Entities;
     int i{0};
     for (auto &boundingBox : BoundingBoxes3D) {
-        sara_msgs::entity en;
+        sara_msgs::Entity en;
         en.BoundingBox = boundingBox;
         en.name = boundingBox.Class;
         en.position = boundingBox.Center;
         if (Colors.size() == BoundingBoxes3D.size())
             en.color = Colors[i].color;
 
-        Entities.push_back(en);
+        Entities.entities.push_back(en);
         ++i;
     }
 
 
-    	//TODO:Leg Detection Call
+    //TODO:Leg Detection Call
 	//TODO:3Pose Call
 	//TODO:Face Recognition Call
 	//TODO:Gender Recognition Call
 
-    // Print the entities list
-	for (auto &ee : Entities)
-		std::cout << ee;
 
+    entityPublisher.publish(Entities);
 }
 
 
