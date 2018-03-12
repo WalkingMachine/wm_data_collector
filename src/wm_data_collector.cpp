@@ -6,6 +6,7 @@
 
 std::string _CAMERA_TOPIC;
 std::string _YOLO_TOPIC;
+std::string _ENTITIES;
 
 
 
@@ -19,18 +20,21 @@ DataCollector::DataCollector(int argc, char **argv) {
     ROS_INFO("camera_topic = %s", _CAMERA_TOPIC.c_str());
     nh.param("yolo_topic", _YOLO_TOPIC, std::string("/darknet_ros/bounding_boxes"));
     ROS_INFO("yolo_topic = %s", _YOLO_TOPIC.c_str());
+    nh.param("entities_topic", _ENTITIES, std::string("/entities"));
+    ROS_INFO("entities_topic = %s", _ENTITIES.c_str());
 
     // subscribe to the camera topic
-    nh.subscribe(_CAMERA_TOPIC, 1, &DataCollector::ImageCallback, this);
+    ros::Subscriber camera_sub = nh.subscribe(_CAMERA_TOPIC, 1, &DataCollector::ImageCallback, this);
 
     // subscribe to the yolo topic
-    nh.subscribe(_YOLO_TOPIC, 1, &DataCollector::BoundingBoxCallback, this);
+    ros::Subscriber yolo_sub = nh.subscribe(_YOLO_TOPIC, 1, &DataCollector::BoundingBoxCallback, this);
 
 
     colorClient = nh.serviceClient<wm_color_detector::AnalyseColor>("get_bounding_boxes_color");
     positionClient = nh.serviceClient<wm_frame_to_box::GetBoundingBoxes3D>("get_3d_bounding_boxes");
-    nh.advertise<sara_msgs::Entities>( "/entities", 10 );
+    nh.advertise<sara_msgs::Entities>( _ENTITIES, 10 );
 
+    ROS_INFO("running");
     // Waiting for events...
     ros::spin();
 
@@ -41,6 +45,7 @@ DataCollector::DataCollector(int argc, char **argv) {
  * @param msg 		The ros message
  */
 void DataCollector::ImageCallback(sensor_msgs::ImageConstPtr msg) {
+//    ROS_INFO("image received");
     Image = msg;
 }
 
@@ -49,6 +54,8 @@ void DataCollector::ImageCallback(sensor_msgs::ImageConstPtr msg) {
  * @param msg 		The ros message
  */
 void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
+
+//    ROS_INFO("BB received");
     // Convert from darknet format to sara format
     auto BoundingBoxes2D = ConvertBB(msg.boundingBoxes);
 
@@ -67,6 +74,7 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
     auto Colors = ColorService.response.colors;
 
 
+    ROS_INFO("comparing %d and %d", Colors.size(), BoundingBoxes3D.size());
 	// Check if the number of elements matches
 	if (Colors.size() != BoundingBoxes3D.size()) {
         ROS_ERROR("An error occurred with Color Recognition!");
@@ -123,6 +131,6 @@ std::vector<sara_msgs::BoundingBox2D> ConvertBB(std::vector<darknet_ros_msgs::Bo
 
 int main(int argc, char **argv){
 
-//    Data
+    DataCollector Collector(argc, argv);
 
 }
