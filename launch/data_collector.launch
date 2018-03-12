@@ -1,0 +1,5 @@
+<launch>
+    <param name="camera_topic" value="/head_xtion/rgb/image_raw"/>
+    <param name="yolo_topic" value="/darknet_ros/bounding_boxes"/>
+	<node  name="wm_data_collector"	pkg="wm_data_collector"	type="wm_data_collector" output="screen"/>
+</launch>
