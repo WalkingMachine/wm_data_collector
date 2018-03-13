@@ -5,6 +5,7 @@
 #include "wm_data_collector.h"
 
 std::string _CAMERA_TOPIC;
+std::string _DEPTH_CAMERA_TOPIC;
 std::string _YOLO_TOPIC;
 std::string _ENTITIES;
 
@@ -16,8 +17,10 @@ DataCollector::DataCollector(int argc, char **argv) {
     ros::NodeHandle nh;
 
     // Get all parameters
-    nh.param("camera_topic", _CAMERA_TOPIC, std::string("/camera/rgb/image_raw"));
+    nh.param("camera_topic", _CAMERA_TOPIC, std::string("/head/xtion/rgb/image_raw"));
     ROS_INFO("camera_topic = %s", _CAMERA_TOPIC.c_str());
+    nh.param("depth_camera_topic", _DEPTH_CAMERA_TOPIC, std::string("/head/xtion/depth/image_raw"));
+    ROS_INFO("depth_camera_topic = %s", _DEPTH_CAMERA_TOPIC.c_str());
     nh.param("yolo_topic", _YOLO_TOPIC, std::string("/darknet_ros/bounding_boxes"));
     ROS_INFO("yolo_topic = %s", _YOLO_TOPIC.c_str());
     nh.param("entities_topic", _ENTITIES, std::string("/entities"));
@@ -25,6 +28,7 @@ DataCollector::DataCollector(int argc, char **argv) {
 
     // subscribe to the camera topic
     ros::Subscriber camera_sub = nh.subscribe(_CAMERA_TOPIC, 1, &DataCollector::ImageCallback, this);
+    ros::Subscriber depth_camera_sub = nh.subscribe(_DEPTH_CAMERA_TOPIC, 1, &DataCollector::DepthImageCallback, this);
 
     // subscribe to the yolo topic
     ros::Subscriber yolo_sub = nh.subscribe(_YOLO_TOPIC, 1, &DataCollector::BoundingBoxCallback, this);
@@ -32,7 +36,7 @@ DataCollector::DataCollector(int argc, char **argv) {
 
     colorClient = nh.serviceClient<wm_color_detector::AnalyseColor>("get_bounding_boxes_color");
     positionClient = nh.serviceClient<wm_frame_to_box::GetBoundingBoxes3D>("get_3d_bounding_boxes");
-    nh.advertise<sara_msgs::Entities>( _ENTITIES, 10 );
+    entityPublisher = nh.advertise<sara_msgs::Entities>( _ENTITIES, 10 );
 
     ROS_INFO("running");
     // Waiting for events...
@@ -41,12 +45,21 @@ DataCollector::DataCollector(int argc, char **argv) {
 }
 
 /**
- * Receive an image from camera and save them
+ * Receive an image from camera and save it
  * @param msg 		The ros message
  */
 void DataCollector::ImageCallback(sensor_msgs::ImageConstPtr msg) {
 //    ROS_INFO("image received");
     Image = msg;
+}
+
+/**
+ * Receive a depth image from camera and save it
+ * @param msg 		The ros message
+ */
+void DataCollector::DepthImageCallback(sensor_msgs::ImageConstPtr msg) {
+//    ROS_INFO("image received");
+    DepthImage = msg;
 }
 
 /**
@@ -63,6 +76,7 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
     // Convert the 2D bounding boxes into 3D ones
     wm_frame_to_box::GetBoundingBoxes3D BBService;
     BBService.request.boundingBoxes2D = BoundingBoxes2D;
+    BBService.request.image = *DepthImage;
     positionClient.call(BBService);
     auto BoundingBoxes3D = BBService.response.boundingBoxes3D;
 
@@ -74,7 +88,7 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
     auto Colors = ColorService.response.colors;
 
 
-    ROS_INFO("comparing %d and %d", Colors.size(), BoundingBoxes3D.size());
+//    ROS_INFO("comparing %d and %d", Colors.size(), BoundingBoxes3D.size());
 	// Check if the number of elements matches
 	if (Colors.size() != BoundingBoxes3D.size()) {
         ROS_ERROR("An error occurred with Color Recognition!");
@@ -103,6 +117,7 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
 	//TODO:Gender Recognition Call
 
 
+    ROS_INFO("publishing entities");
     entityPublisher.publish(Entities);
 }
 
@@ -118,7 +133,7 @@ std::vector<sara_msgs::BoundingBox2D> ConvertBB(std::vector<darknet_ros_msgs::Bo
         sara_msgs::BoundingBox2D BBOut;
         BBOut.Class = DBB.Class;
         BBOut.probability = DBB.probability;
-        BBOut.xmax = DBB.xmin;
+        BBOut.xmax = DBB.xmax;
         BBOut.xmin = DBB.xmin;
         BBOut.ymax = DBB.ymax;
         BBOut.ymin = DBB.ymin;
