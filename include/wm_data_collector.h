@@ -20,16 +20,19 @@
 
 class DataCollector {
 
-    sensor_msgs::ImageConstPtr lastImage;
     ros::ServiceClient colorClient;
     ros::ServiceClient positionClient;
     sensor_msgs::ImageConstPtr Image;
+    sensor_msgs::ImageConstPtr DepthImage;
     ros::Publisher entityPublisher;
 
 // Receive an image from camera
     void ImageCallback(sensor_msgs::ImageConstPtr msg);
+// Receive a depth image from camera
+    void DepthImageCallback(sensor_msgs::ImageConstPtr msg);
 
-// Receive the Bounding Boxes from Yolo and process then
+
+    // Receive the Bounding Boxes from Yolo and process then
     void BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg);
 
 public:
