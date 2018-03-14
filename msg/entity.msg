@@ -1,8 +1,0 @@
-std_msgs/Int64 ID
-std_msgs/String name
-std_msgs/String color
-geometry_msgs/Point position
-std_msgs/Float32 direction
-geometry_msgs/Point velocity
-std_msgs/String gender
-std_msgs/String emotion
