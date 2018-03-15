@@ -8,7 +8,9 @@ std::string _CAMERA_TOPIC;
 std::string _DEPTH_CAMERA_TOPIC;
 std::string _YOLO_TOPIC;
 std::string _ENTITIES;
-
+std::string _PEOPLE_TOPIC;
+std::string _LEGS_TOPIC;
+double _LEG_DISTANCE;
 
 
 DataCollector::DataCollector(int argc, char **argv) {
@@ -25,18 +27,26 @@ DataCollector::DataCollector(int argc, char **argv) {
     ROS_INFO("yolo_topic = %s", _YOLO_TOPIC.c_str());
     nh.param("entities_topic", _ENTITIES, std::string("/entities"));
     ROS_INFO("entities_topic = %s", _ENTITIES.c_str());
+    nh.param("people_topic", _PEOPLE_TOPIC, std::string("/people"));
+    ROS_INFO("people_topic = %s", _PEOPLE_TOPIC.c_str());
+    nh.param("legs_topic", _LEGS_TOPIC, std::string("/legs"));
+    ROS_INFO("legs_topic = %s", _LEGS_TOPIC.c_str());
+    nh.param("leg_distance", _LEG_DISTANCE, 1.0);
+    ROS_INFO("leg_distance = %lf", _LEG_DISTANCE);
 
-    // subscribe to the camera topic
+    // Subscribers
     ros::Subscriber camera_sub = nh.subscribe(_CAMERA_TOPIC, 1, &DataCollector::ImageCallback, this);
     ros::Subscriber depth_camera_sub = nh.subscribe(_DEPTH_CAMERA_TOPIC, 1, &DataCollector::DepthImageCallback, this);
-
-    // subscribe to the yolo topic
     ros::Subscriber yolo_sub = nh.subscribe(_YOLO_TOPIC, 1, &DataCollector::BoundingBoxCallback, this);
+    ros::Subscriber leg_sub = nh.subscribe(_LEGS_TOPIC, 1, &DataCollector::LegsCallback, this);
 
-
+    // Service clients
     colorClient = nh.serviceClient<wm_color_detector::AnalyseColor>("get_bounding_boxes_color");
     positionClient = nh.serviceClient<wm_frame_to_box::GetBoundingBoxes3D>("get_3d_bounding_boxes");
-    entityPublisher = nh.advertise<sara_msgs::Entities>( _ENTITIES, 10 );
+
+    // Publishers
+    entityPublisher = nh.advertise<sara_msgs::Entities>(_ENTITIES, 10);
+    peoplePublisher = nh.advertise<people_msgs::PositionMeasurementArray>(_PEOPLE_TOPIC, 10);
 
     ROS_INFO("running");
     // Waiting for events...
@@ -60,6 +70,15 @@ void DataCollector::ImageCallback(sensor_msgs::ImageConstPtr msg) {
 void DataCollector::DepthImageCallback(sensor_msgs::ImageConstPtr msg) {
 //    ROS_INFO("image received");
     DepthImage = msg;
+}
+
+/**
+ * Receive a list of legs and store them for later
+ * @param msg 		The ros message
+ */
+void DataCollector::LegsCallback(people_msgs::PositionMeasurementArray msg) {
+//    ROS_INFO("Legs received");
+    Legs = msg;
 }
 
 /**
@@ -89,36 +108,72 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
 
 
 //    ROS_INFO("comparing %d and %d", Colors.size(), BoundingBoxes3D.size());
-	// Check if the number of elements matches
-	if (Colors.size() != BoundingBoxes3D.size()) {
+    // Check if the number of elements matches
+    if (Colors.size() != BoundingBoxes3D.size()) {
         ROS_ERROR("An error occurred with Color Recognition!");
     }
 
 
     // Create the entities from the bounding boxes
+    people_msgs::PositionMeasurementArray people;
     sara_msgs::Entities Entities;
+
+
     int i{0};
     for (auto &boundingBox : BoundingBoxes3D) {
         sara_msgs::Entity en;
         en.BoundingBox = boundingBox;
         en.name = boundingBox.Class;
         en.position = boundingBox.Center;
+        en.probability = boundingBox.probability;
         if (Colors.size() == BoundingBoxes3D.size())
             en.color = Colors[i].color;
 
-        Entities.entities.push_back(en);
+        sara_msgs::Entity_<std::allocator<void>>::_name_type t;
+        t = en.name;
+        if (en.name == "person") {
+            people_msgs::PositionMeasurement person;
+            en.position.z = 0;
+
+            // Compare the legs with their people
+            for (auto &legs : Legs.people) {
+                if (legs.reliability && sqrt(
+                        (legs.pos.x - en.position.x) * (legs.pos.x - en.position.x) +
+                        (legs.pos.y - en.position.y) * (legs.pos.y - en.position.y)) < _LEG_DISTANCE) {
+                    en.position = legs.pos;
+                    legs.reliability = 0;
+                }
+            }
+
+            person.pos = en.position;
+            person.reliability = en.probability;
+
+            if (person.reliability)
+                people.people.push_back(person);
+        }
+        if (en.probability)
+            Entities.entities.push_back(en);
         ++i;
     }
 
+    for (auto legs : Legs.people) {
+        if (legs.reliability) {
+            sara_msgs::Entity en;
+            en.position = legs.pos;
+            en.probability = legs.reliability/2;
+            Entities.entities.push_back(en);
+        }
+    }
 
-    //TODO:Leg Detection Call
-	//TODO:3Pose Call
-	//TODO:Face Recognition Call
-	//TODO:Gender Recognition Call
+
+    //TODO:3Pose Call
+    //TODO:Face Recognition Call
+    //TODO:Gender Recognition Call
 
 
     ROS_INFO("publishing entities");
     entityPublisher.publish(Entities);
+    peoplePublisher.publish(people);
 }
 
 
@@ -127,9 +182,9 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
  * @param DBBs 		Darknet bounding boxes
  * @return BBsOut 		sara bounding boxes
  */
-std::vector<sara_msgs::BoundingBox2D> ConvertBB(std::vector<darknet_ros_msgs::BoundingBox> DBBs){
+std::vector<sara_msgs::BoundingBox2D> ConvertBB(std::vector<darknet_ros_msgs::BoundingBox> DBBs) {
     std::vector<sara_msgs::BoundingBox2D> BBsOut;
-    for (auto DBB : DBBs){
+    for (auto DBB : DBBs) {
         sara_msgs::BoundingBox2D BBOut;
         BBOut.Class = DBB.Class;
         BBOut.probability = DBB.probability;
@@ -143,8 +198,7 @@ std::vector<sara_msgs::BoundingBox2D> ConvertBB(std::vector<darknet_ros_msgs::Bo
 }
 
 
-
-int main(int argc, char **argv){
+int main(int argc, char **argv) {
 
     DataCollector Collector(argc, argv);
 

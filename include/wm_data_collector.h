@@ -14,6 +14,7 @@
 #include "wm_frame_to_box/GetBoundingBoxes3D.h"
 #include "sara_msgs/Entity.h"
 #include "sara_msgs/Entities.h"
+#include "people_msgs/PositionMeasurementArray.h"
 
 
 #include <sstream>
@@ -22,17 +23,21 @@ class DataCollector {
 
     ros::ServiceClient colorClient;
     ros::ServiceClient positionClient;
+    ros::Publisher entityPublisher;
+    ros::Publisher peoplePublisher;
     sensor_msgs::ImageConstPtr Image;
     sensor_msgs::ImageConstPtr DepthImage;
-    ros::Publisher entityPublisher;
+    people_msgs::PositionMeasurementArray Legs;
 
-// Receive an image from camera
+    // Receive an image from camera
     void ImageCallback(sensor_msgs::ImageConstPtr msg);
-// Receive a depth image from camera
+    // Receive a depth image from camera
     void DepthImageCallback(sensor_msgs::ImageConstPtr msg);
-
-
     // Receive the Bounding Boxes from Yolo and process then
+    void LegsCallback(people_msgs::PositionMeasurementArray msg);
+
+
+    // Receive the Bounding Boxes from Yolo and process them
     void BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg);
 
 public:
