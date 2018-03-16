@@ -17,9 +17,9 @@ DataCollector::DataCollector(int argc, char **argv) {
     ros::NodeHandle nh;
 
     // Get all parameters
-    nh.param("camera_topic", _CAMERA_TOPIC, std::string("/head/xtion/rgb/image_raw"));
+    nh.param("camera_topic", _CAMERA_TOPIC, std::string("/head_xtion/rgb/image_raw"));
     ROS_INFO("camera_topic = %s", _CAMERA_TOPIC.c_str());
-    nh.param("depth_camera_topic", _DEPTH_CAMERA_TOPIC, std::string("/head/xtion/depth/image_raw"));
+    nh.param("depth_camera_topic", _DEPTH_CAMERA_TOPIC, std::string("/head_xtion/depth/image_raw"));
     ROS_INFO("depth_camera_topic = %s", _DEPTH_CAMERA_TOPIC.c_str());
     nh.param("yolo_topic", _YOLO_TOPIC, std::string("/darknet_ros/bounding_boxes"));
     ROS_INFO("yolo_topic = %s", _YOLO_TOPIC.c_str());
@@ -67,6 +67,9 @@ void DataCollector::DepthImageCallback(sensor_msgs::ImageConstPtr msg) {
  * @param msg 		The ros message
  */
 void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
+
+    if (!Image || !DepthImage)
+        return;
 
 //    ROS_INFO("BB received");
     // Convert from darknet format to sara format
