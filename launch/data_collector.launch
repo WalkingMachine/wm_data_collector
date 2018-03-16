@@ -1,5 +1,6 @@
 <launch>
     <param name="camera_topic" value="/head_xtion/rgb/image_raw"/>
+    <param name="depth_camera_topic" value="/head_xtion/depth/image_raw"/>
     <param name="yolo_topic" value="/darknet_ros/bounding_boxes"/>
     <param name="people_topic" value="/people"/>
     <param name="legs_topic" value="/legs_topic"/>
