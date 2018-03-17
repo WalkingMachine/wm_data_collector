@@ -15,6 +15,7 @@
 #include "sara_msgs/Entity.h"
 #include "sara_msgs/Entities.h"
 #include "people_msgs/PositionMeasurementArray.h"
+#include "visualization_msgs/Marker.h"
 
 
 #include <sstream>
@@ -25,6 +26,7 @@ class DataCollector {
     ros::ServiceClient positionClient;
     ros::Publisher entityPublisher;
     ros::Publisher peoplePublisher;
+    ros::Publisher markerPublisher;
     sensor_msgs::ImageConstPtr Image;
     sensor_msgs::ImageConstPtr DepthImage;
     people_msgs::PositionMeasurementArray Legs;

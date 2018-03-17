@@ -2,8 +2,9 @@
     <param name="camera_topic" value="/head_xtion/rgb/image_raw"/>
     <param name="depth_camera_topic" value="/head_xtion/depth/image_raw"/>
     <param name="yolo_topic" value="/darknet_ros/bounding_boxes"/>
-    <param name="people_topic" value="/people"/>
-    <param name="legs_topic" value="/legs_topic"/>
-    <param name="leg_distance" value="0.5"/>
+    <param name="people_topic" value="/people_tracker_filter"/>
+    <param name="legs_topic" value="/people_tracker_measurements"/>
+    <param name="entities_marker_topic" value="/entities_marker"/>
+    <param name="leg_distance" value="1"/>
 	<node  name="wm_data_collector"	pkg="wm_data_collector"	type="wm_data_collector" output="screen"/>
 </launch>

@@ -10,6 +10,7 @@ std::string _YOLO_TOPIC;
 std::string _ENTITIES;
 std::string _PEOPLE_TOPIC;
 std::string _LEGS_TOPIC;
+std::string _MARKER_TOPIC;
 double _LEG_DISTANCE;
 
 
@@ -31,6 +32,8 @@ DataCollector::DataCollector(int argc, char **argv) {
     ROS_INFO("people_topic = %s", _PEOPLE_TOPIC.c_str());
     nh.param("legs_topic", _LEGS_TOPIC, std::string("/legs"));
     ROS_INFO("legs_topic = %s", _LEGS_TOPIC.c_str());
+    nh.param("entities_marker_topic", _MARKER_TOPIC, std::string("/entities_marker"));
+    ROS_INFO("entities_marker_topic = %s", _MARKER_TOPIC.c_str());
     nh.param("leg_distance", _LEG_DISTANCE, 1.0);
     ROS_INFO("leg_distance = %lf", _LEG_DISTANCE);
 
@@ -45,8 +48,9 @@ DataCollector::DataCollector(int argc, char **argv) {
     positionClient = nh.serviceClient<wm_frame_to_box::GetBoundingBoxes3D>("get_3d_bounding_boxes");
 
     // Publishers
-    entityPublisher = nh.advertise<sara_msgs::Entities>(_ENTITIES, 10);
-    peoplePublisher = nh.advertise<people_msgs::PositionMeasurementArray>(_PEOPLE_TOPIC, 10);
+    entityPublisher = nh.advertise<sara_msgs::Entities>(_ENTITIES, 100);
+    peoplePublisher = nh.advertise<people_msgs::PositionMeasurement>(_PEOPLE_TOPIC, 100);
+    markerPublisher = nh.advertise<visualization_msgs::Marker>(_MARKER_TOPIC, 100);
 
     ROS_INFO("running");
     // Waiting for events...
@@ -99,6 +103,8 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
     wm_frame_to_box::GetBoundingBoxes3D BBService;
     BBService.request.boundingBoxes2D = BoundingBoxes2D;
     BBService.request.image = *DepthImage;
+    BBService.request.output_frame = "/map";
+    BBService.request.output_frame = "/map";
     positionClient.call(BBService);
     auto BoundingBoxes3D = BBService.response.boundingBoxes3D;
 
@@ -143,19 +149,24 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
                 if (legs.reliability && sqrt(
                         (legs.pos.x - en.position.x) * (legs.pos.x - en.position.x) +
                         (legs.pos.y - en.position.y) * (legs.pos.y - en.position.y)) < _LEG_DISTANCE) {
+                    ROS_INFO("matching legs with person");
                     en.position = legs.pos;
                     legs.reliability = 0;
                 }
             }
 
-            person.pos = en.position;
+            person.pos.x = en.position.x;
+            person.pos.y = en.position.y;
             person.reliability = en.probability;
 
             if (person.reliability)
                 people.people.push_back(person);
         }
-        if (en.probability)
+        if (en.probability > 0) {
             Entities.entities.push_back(en);
+        } else {
+            ROS_INFO("rejecting an entity of name : %s because it's probability is %lf", en.name.c_str(), en.probability);
+        }
         ++i;
     }
 
@@ -168,13 +179,32 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
         }
     }
 
-
-    //TODO:3Pose Call
     //TODO:Face Recognition Call
     //TODO:Gender Recognition Call
 
 
-    ROS_INFO("publishing entities");
+
+    // Publish the visualisation markers for rviz
+    i = 0;
+    for (auto &en : Entities.entities) {
+        visualization_msgs::Marker m;
+        m.header.stamp = ros::Time::now();
+        m.header.frame_id = "/map";
+        m.ns = "entities";
+        m.id = i++;
+        m.type = m.CYLINDER;
+        m.pose.position = en.position;
+        m.scale.x = 0.3;
+        m.scale.y = 0.3;
+        m.scale.z = 0.3;
+        m.color.a = 0.8;
+        m.lifetime = ros::Duration(5.0);
+        m.color.r = 1;
+        m.color.g = 0.1;
+        markerPublisher.publish(m);
+    }
+
+    ROS_INFO("publishing %d entities", Entities.entities.size());
     entityPublisher.publish(Entities);
     peoplePublisher.publish(people);
 }
