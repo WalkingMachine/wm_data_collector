@@ -85,6 +85,61 @@ void DataCollector::LegsCallback(people_msgs::PositionMeasurementArray msg) {
     Legs = msg;
 }
 
+
+void DataCollector::PublishVisualisation() {
+    // Publish the visualisation markers for rviz
+    int i{0};
+    for (auto &en : Entities.entities) {
+        // Publish position dot
+
+        if (en.name != "") {
+            {
+                visualization_msgs::Marker m;
+                m.header.stamp = ros::Time::now();
+                m.lifetime = ros::Duration(0.5);
+                m.header.frame_id = "/map";
+                m.ns = "entities";
+                m.id = i++;
+                m.type = m.CYLINDER;
+                m.pose.position = en.position;
+                m.scale.x = 0.3;
+                m.scale.y = 0.3;
+                m.scale.z = 0.3;
+                m.color.r = float(1 - en.probability);
+                m.color.g = float(en.probability);
+                m.color.b = 0.1;
+                m.color.a = 1;
+                markerPublisher.publish(m);
+            }
+
+            // Publish name on top
+            {
+                visualization_msgs::Marker m;
+                m.header.stamp = ros::Time::now();
+                m.lifetime = ros::Duration(0.5);
+                m.header.frame_id = "/map";
+                m.ns = "entities";
+                m.id = i++;
+                m.type = m.TEXT_VIEW_FACING;
+                m.text = en.name;
+                m.pose.position.x = en.position.x;
+                m.pose.position.y = en.position.y;
+                m.pose.position.z = en.position.z + 0.5;
+                m.scale.x = 0.2;
+                m.scale.y = 0.2;
+                m.scale.z = 0.2;
+                m.color.r = 1;
+                m.color.g = 1;
+                m.color.b = 1;
+                m.color.a = 1;
+                markerPublisher.publish(m);
+            }
+        }
+    }
+}
+
+
+
 /**
  * Receive a list of bounding boxes and create entities from them
  * @param msg 		The ros message
@@ -103,7 +158,6 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
     wm_frame_to_box::GetBoundingBoxes3D BBService;
     BBService.request.boundingBoxes2D = BoundingBoxes2D;
     BBService.request.image = *DepthImage;
-    BBService.request.output_frame = "/map";
     BBService.request.output_frame = "/map";
     positionClient.call(BBService);
     auto BoundingBoxes3D = BBService.response.boundingBoxes3D;
@@ -124,46 +178,103 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
 
 
     // Create the entities from the bounding boxes
-    people_msgs::PositionMeasurementArray people;
-    sara_msgs::Entities Entities;
 
+    {  // Remove too old entities
+        int i{0};
+        for (auto &en : Entities.entities) {
+            en.probability /= 1.1;
+            if (en.probability < 0.1) {
+                Entities.entities.erase(Entities.entities.begin()+i);
+                i--;
+            }
+            i++;
+        }
+    }
 
     int i{0};
     for (auto &boundingBox : BoundingBoxes3D) {
+
+
         sara_msgs::Entity en;
         en.BoundingBox = boundingBox;
         en.name = boundingBox.Class;
         en.position = boundingBox.Center;
         en.probability = boundingBox.probability;
+        en.lastUpdateTime = ros::Time::now();
         if (Colors.size() == BoundingBoxes3D.size())
             en.color = Colors[i].color;
 
-        sara_msgs::Entity_<std::allocator<void>>::_name_type t;
-        t = en.name;
+        // If the entity is a person
         if (en.name == "person") {
             people_msgs::PositionMeasurement person;
             en.position.z = 0;
 
+            // we compare it with the list of legs
+            double minDistance{_LEG_DISTANCE};
+            auto *closestLegs{&Legs.people[0]};
             // Compare the legs with their people
             for (auto &legs : Legs.people) {
-                if (legs.reliability && sqrt(
-                        (legs.pos.x - en.position.x) * (legs.pos.x - en.position.x) +
-                        (legs.pos.y - en.position.y) * (legs.pos.y - en.position.y)) < _LEG_DISTANCE) {
-                    ROS_INFO("matching legs with person");
-                    en.position = legs.pos;
-                    legs.reliability = 0;
+                if (legs.reliability > 0) {
+                    double distance = sqrt(
+                            (legs.pos.x - en.position.x+en.velocity.x) * (legs.pos.x - en.position.x+en.velocity.x) +
+                            (legs.pos.y - en.position.y+en.velocity.y) * (legs.pos.y - en.position.y+en.velocity.y));
+                    if (distance < minDistance) {
+                        ROS_INFO("matching legs with person");
+                        closestLegs = &legs;
+                        minDistance = distance;
+                    }
                 }
             }
+            en.position = closestLegs->pos;
+            closestLegs->reliability = 0;
 
+            // We publish a seed for leg detector
             person.pos.x = en.position.x;
             person.pos.y = en.position.y;
+            person.object_id = en.ID;
+            person.initialization = 1;
+            person.name = en.name;
             person.reliability = en.probability;
-
-            if (person.reliability)
-                people.people.push_back(person);
+            peoplePublisher.publish(person);
         }
+
+
+        // Looking for the closest entity from the past
         if (en.probability > 0) {
-            Entities.entities.push_back(en);
+            sara_msgs::Entity *closestEntity{nullptr};
+            double minDist{2};
+            for (auto &en2 : Entities.entities){
+                // Calculate the weighted resemblances
+                double distance{ sqrt((en.position.x+en.velocity.x-en2.position.x-en2.velocity.x)*(en.position.x+en.velocity.x-en2.position.x-en2.velocity.x) +
+                                (en.position.y+en.velocity.y-en2.position.y-en2.velocity.y)*(en.position.y+en.velocity.y-en2.position.y-en2.velocity.y) +
+                                (en.position.z+en.velocity.z-en2.position.z-en2.velocity.z)*(en.position.z+en.velocity.z-en2.position.z-en2.velocity.z))};
+                distance += (en.name == en2.name)*0.5;
+                distance += (en.color == en2.color)*0.1;
+                distance += (en.gender == en2.gender)*0.1;
+                if (distance < minDist){
+                    closestEntity = &en2;
+                    minDist = distance;
+                }
+            }
+            if (closestEntity != nullptr){
+                ROS_INFO("matching with old entity");
+                closestEntity->name = en.name;
+                closestEntity->position = en.position;
+                closestEntity->color = en.color;
+                closestEntity->BoundingBox = en.BoundingBox;
+                closestEntity->emotion = en.emotion;
+                closestEntity->direction = en.direction;
+                closestEntity->probability = en.probability;
+                closestEntity->lastUpdateTime = en.lastUpdateTime;
+                closestEntity->velocity.x = (en.position.x-closestEntity->position.x)/2;
+                closestEntity->velocity.x = (en.position.y-closestEntity->position.y)/2;
+                closestEntity->velocity.x = (en.position.z-closestEntity->position.z)/2;
+            } else {
+                Entities.entities.push_back(en);
+            }
+
+
+
         } else {
             ROS_INFO("rejecting an entity of name : %s because it's probability is %lf", en.name.c_str(), en.probability);
         }
@@ -171,42 +282,65 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
     }
 
     for (auto legs : Legs.people) {
-        if (legs.reliability) {
+        if (legs.reliability > 0) {
             sara_msgs::Entity en;
             en.position = legs.pos;
-            en.probability = legs.reliability/2;
-            Entities.entities.push_back(en);
+            en.probability = legs.reliability / 2;
+
+
+            sara_msgs::Entity *closestEntity{nullptr};
+            double minDist{0.5};
+            for (auto &en2 : Entities.entities){
+                // Calculate the weighted resemblances
+                double distance{ sqrt((en.position.x+en.velocity.x-en2.position.x-en2.velocity.x)*(en.position.x+en.velocity.x-en2.position.x-en2.velocity.x) +
+                (en.position.y+en.velocity.y-en2.position.y-en2.velocity.y)*(en.position.y+en.velocity.y-en2.position.y-en2.velocity.y) +
+                (en.position.z+en.velocity.z-en2.position.z-en2.velocity.z)*(en.position.z+en.velocity.z-en2.position.z-en2.velocity.z))};
+
+            if (distance < minDist){
+                    closestEntity = &en2;
+                    minDist = distance;
+                }
+            }
+            if (closestEntity != nullptr){
+                ROS_INFO("matching with old entity");
+                closestEntity->position = en.position;
+                closestEntity->direction = en.direction;
+                closestEntity->lastUpdateTime = en.lastUpdateTime;
+                closestEntity->probability = en.probability;
+                closestEntity->velocity.x = (en.position.x-closestEntity->position.x)/2;
+                closestEntity->velocity.x = (en.position.y-closestEntity->position.y)/2;
+                closestEntity->velocity.x = (en.position.z-closestEntity->position.z)/2;
+            } else {
+                Entities.entities.push_back(en);
+            }
+
         }
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     //TODO:Face Recognition Call
     //TODO:Gender Recognition Call
 
 
 
-    // Publish the visualisation markers for rviz
-    i = 0;
-    for (auto &en : Entities.entities) {
-        visualization_msgs::Marker m;
-        m.header.stamp = ros::Time::now();
-        m.header.frame_id = "/map";
-        m.ns = "entities";
-        m.id = i++;
-        m.type = m.CYLINDER;
-        m.pose.position = en.position;
-        m.scale.x = 0.3;
-        m.scale.y = 0.3;
-        m.scale.z = 0.3;
-        m.color.a = 0.8;
-        m.lifetime = ros::Duration(5.0);
-        m.color.r = 1;
-        m.color.g = 0.1;
-        markerPublisher.publish(m);
-    }
+    PublishVisualisation();
 
     ROS_INFO("publishing %d entities", Entities.entities.size());
     entityPublisher.publish(Entities);
-    peoplePublisher.publish(people);
 }
 
 

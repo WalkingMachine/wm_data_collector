@@ -31,6 +31,8 @@ class DataCollector {
     sensor_msgs::ImageConstPtr DepthImage;
     people_msgs::PositionMeasurementArray Legs;
 
+    sara_msgs::Entities Entities;
+
     // Receive an image from camera
     void ImageCallback(sensor_msgs::ImageConstPtr msg);
     // Receive a depth image from camera
@@ -41,6 +43,9 @@ class DataCollector {
 
     // Receive the Bounding Boxes from Yolo and process them
     void BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg);
+
+
+    void PublishVisualisation();
 
 public:
 
