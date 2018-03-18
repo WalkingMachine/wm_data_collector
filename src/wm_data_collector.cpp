@@ -13,7 +13,19 @@ std::string _LEGS_TOPIC;
 std::string _MARKER_TOPIC;
 double _LEG_DISTANCE;
 
+/**
+ * Main call. Create the DataCollector object
+ */
+int main(int argc, char **argv) {
 
+    DataCollector Collector(argc, argv);
+
+}
+
+
+/**
+ * DataCollector constructor
+ */
 DataCollector::DataCollector(int argc, char **argv) {
     // Initialise ROS
     ros::init(argc, argv, "wm_data_collector");
@@ -52,40 +64,94 @@ DataCollector::DataCollector(int argc, char **argv) {
     peoplePublisher = nh.advertise<people_msgs::PositionMeasurement>(_PEOPLE_TOPIC, 100);
     markerPublisher = nh.advertise<visualization_msgs::Marker>(_MARKER_TOPIC, 100);
 
+    // initialyse the procedural ID
+    ProceduralID = 1;
+
     ROS_INFO("running");
-    // Waiting for events...
-    ros::spin();
+    ros::Rate rate(20.0); // run at 20 hz
+    while (ros::ok()){
+        UpdateEntities();
+        PublishVisualisation();
+        ros::spinOnce();
+        rate.sleep();
+    }
 
+}
+
+
+/**
+ * Update all entities end clean the database
+ */
+void DataCollector::UpdateEntities() {
+
+    // Decay entities and remove the old ones
+    int i{0};
+    for (auto &en : Entities.entities) {
+        en.probability *= 0.9;
+        if (en.probability < 0.1) {  // TODO: use parameters
+            Entities.entities.erase(Entities.entities.begin()+i);
+            i--;
+        }
+        i++;
+    }
+    // Increment velocity to the position and apply virtual friction
+    for (auto &en : Entities.entities) {
+        en.position.x += en.velocity.x *= 0.9;  // TODO: use parameters
+        en.position.y += en.velocity.y *= 0.9;
+        en.position.z += en.velocity.z *= 0.9;
+    }
+}
+
+
+/**
+ * Add an entity to the list or match it with a corresponding one
+ * @param newEntity 		The entity to add
+ * @param tolerance 		the level of tolerance for the match
+ */
+void DataCollector::AddEntity(sara_msgs::Entity newEntity, int tolerance) {
+
+    if (newEntity.probability < 0.1)
+        return;
+
+    sara_msgs::Entity *closestEntity{nullptr};
+    double minDist{tolerance};
+    for (auto &en2 : Entities.entities){
+        // Calculate the weighted resemblances
+        double distance{ sqrt((newEntity.position.x-en2.position.x)*(newEntity.position.x-en2.position.x) +
+                              (newEntity.position.y-en2.position.y)*(newEntity.position.y-en2.position.y) +
+                              (newEntity.position.z-en2.position.z)*(newEntity.position.z-en2.position.z))};
+        if (newEntity.name != "") distance += (newEntity.name == en2.name)*0.5;  // TODO: use parameters
+        if (newEntity.color != "") distance += (newEntity.color == en2.color)*0.1;  // TODO: use parameters
+        if (newEntity.gender != "") distance += (newEntity.gender == en2.gender)*0.1;  // TODO: use parameters
+        if (distance < minDist){
+            closestEntity = &en2;
+            minDist = distance;
+        }
+    }
+    if (closestEntity != nullptr){
+        ROS_INFO("matching with old entity");
+        if (newEntity.name != "") closestEntity->name = newEntity.name;
+        if (newEntity.color != "") closestEntity->color = newEntity.color;
+        if (newEntity.gender != "") closestEntity->gender = newEntity.gender;
+        if (newEntity.emotion != "") closestEntity->emotion = newEntity.emotion;
+        if (newEntity.direction != 0) closestEntity->direction = newEntity.direction;
+        if (closestEntity->ID == 0) closestEntity->ID = newEntity.ID;
+        closestEntity->position = newEntity.position;
+        closestEntity->BoundingBox = newEntity.BoundingBox;
+        closestEntity->probability = newEntity.probability;
+        closestEntity->lastUpdateTime = newEntity.lastUpdateTime;
+        closestEntity->velocity.x = (newEntity.position.x-closestEntity->position.x)/2;
+        closestEntity->velocity.x = (newEntity.position.y-closestEntity->position.y)/2;
+        closestEntity->velocity.x = (newEntity.position.z-closestEntity->position.z)/2;
+    } else {
+        newEntity.ID = ProceduralID++;
+        Entities.entities.push_back(newEntity);
+    }
 }
 
 /**
- * Receive an image from camera and save it
- * @param msg 		The ros message
+ * Publish the visual clues onto markers for rviz
  */
-void DataCollector::ImageCallback(sensor_msgs::ImageConstPtr msg) {
-//    ROS_INFO("image received");
-    Image = msg;
-}
-
-/**
- * Receive a depth image from camera and save it
- * @param msg 		The ros message
- */
-void DataCollector::DepthImageCallback(sensor_msgs::ImageConstPtr msg) {
-//    ROS_INFO("image received");
-    DepthImage = msg;
-}
-
-/**
- * Receive a list of legs and store them for later
- * @param msg 		The ros message
- */
-void DataCollector::LegsCallback(people_msgs::PositionMeasurementArray msg) {
-//    ROS_INFO("Legs received");
-    Legs = msg;
-}
-
-
 void DataCollector::PublishVisualisation() {
     // Publish the visualisation markers for rviz
     int i{0};
@@ -141,6 +207,42 @@ void DataCollector::PublishVisualisation() {
 
 
 /**
+ * Receive an image from camera and save it
+ * @param msg 		The ros message
+ */
+void DataCollector::ImageCallback(sensor_msgs::ImageConstPtr msg) {
+//    ROS_INFO("image received");
+    Image = msg;
+}
+
+
+/**
+ * Receive a depth image from camera and save it
+ * @param msg 		The ros message
+ */
+void DataCollector::DepthImageCallback(sensor_msgs::ImageConstPtr msg) {
+//    ROS_INFO("image received");
+    DepthImage = msg;
+}
+
+
+/**
+ * Receive a list of legs and create entities from them
+ * @param Legs 		The list of persons found by their legs
+ */
+void DataCollector::LegsCallback(people_msgs::PositionMeasurementArray Legs) {
+    for (auto legs : Legs.people) {
+        if (legs.reliability > 0) {
+            sara_msgs::Entity en;
+            en.position = legs.pos;
+            en.probability = legs.reliability / 2;
+            AddEntity(en, 2);
+        }
+    }
+}
+
+
+/**
  * Receive a list of bounding boxes and create entities from them
  * @param msg 		The ros message
  */
@@ -149,10 +251,8 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
     if (!Image || !DepthImage)
         return;
 
-//    ROS_INFO("BB received");
     // Convert from darknet format to sara format
     auto BoundingBoxes2D = ConvertBB(msg.boundingBoxes);
-
 
     // Convert the 2D bounding boxes into 3D ones
     wm_frame_to_box::GetBoundingBoxes3D BBService;
@@ -169,31 +269,15 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
     colorClient.call(ColorService);
     auto Colors = ColorService.response.colors;
 
-
-//    ROS_INFO("comparing %d and %d", Colors.size(), BoundingBoxes3D.size());
     // Check if the number of elements matches
     if (Colors.size() != BoundingBoxes3D.size()) {
-        ROS_ERROR("An error occurred with Color Recognition!");
+        ROS_ERROR("An error occurred with Color Recognition! (numbers doesn't match)");
+        return;
     }
-
 
     // Create the entities from the bounding boxes
-
-    {  // Remove too old entities
-        int i{0};
-        for (auto &en : Entities.entities) {
-            en.probability /= 1.1;
-            if (en.probability < 0.1) {
-                Entities.entities.erase(Entities.entities.begin()+i);
-                i--;
-            }
-            i++;
-        }
-    }
-
     int i{0};
     for (auto &boundingBox : BoundingBoxes3D) {
-
 
         sara_msgs::Entity en;
         en.BoundingBox = boundingBox;
@@ -203,144 +287,29 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
         en.lastUpdateTime = ros::Time::now();
         if (Colors.size() == BoundingBoxes3D.size())
             en.color = Colors[i].color;
-
-        // If the entity is a person
-        if (en.name == "person") {
-            people_msgs::PositionMeasurement person;
-            en.position.z = 0;
-
-            // we compare it with the list of legs
-            double minDistance{_LEG_DISTANCE};
-            auto *closestLegs{&Legs.people[0]};
-            // Compare the legs with their people
-            for (auto &legs : Legs.people) {
-                if (legs.reliability > 0) {
-                    double distance = sqrt(
-                            (legs.pos.x - en.position.x+en.velocity.x) * (legs.pos.x - en.position.x+en.velocity.x) +
-                            (legs.pos.y - en.position.y+en.velocity.y) * (legs.pos.y - en.position.y+en.velocity.y));
-                    if (distance < minDistance) {
-                        ROS_INFO("matching legs with person");
-                        closestLegs = &legs;
-                        minDistance = distance;
-                    }
-                }
-            }
-            en.position = closestLegs->pos;
-            closestLegs->reliability = 0;
-
-            // We publish a seed for leg detector
-            person.pos.x = en.position.x;
-            person.pos.y = en.position.y;
-            person.object_id = en.ID;
-            person.initialization = 1;
-            person.name = en.name;
-            person.reliability = en.probability;
-            peoplePublisher.publish(person);
-        }
-
-
         // Looking for the closest entity from the past
         if (en.probability > 0) {
-            sara_msgs::Entity *closestEntity{nullptr};
-            double minDist{2};
-            for (auto &en2 : Entities.entities){
-                // Calculate the weighted resemblances
-                double distance{ sqrt((en.position.x+en.velocity.x-en2.position.x-en2.velocity.x)*(en.position.x+en.velocity.x-en2.position.x-en2.velocity.x) +
-                                (en.position.y+en.velocity.y-en2.position.y-en2.velocity.y)*(en.position.y+en.velocity.y-en2.position.y-en2.velocity.y) +
-                                (en.position.z+en.velocity.z-en2.position.z-en2.velocity.z)*(en.position.z+en.velocity.z-en2.position.z-en2.velocity.z))};
-                distance += (en.name == en2.name)*0.5;
-                distance += (en.color == en2.color)*0.1;
-                distance += (en.gender == en2.gender)*0.1;
-                if (distance < minDist){
-                    closestEntity = &en2;
-                    minDist = distance;
-                }
+
+            // If the entity is a person
+            if (en.name == "person") {
+                people_msgs::PositionMeasurement person;
+                en.position.z = 0;
+
+                // We publish a seed for leg detector
+                person.pos.x = en.position.x;
+                person.pos.y = en.position.y;
+                person.object_id = en.ID;
+                person.initialization = 1;
+                person.name = en.name;
+                person.reliability = en.probability;
+                peoplePublisher.publish(person);
             }
-            if (closestEntity != nullptr){
-                ROS_INFO("matching with old entity");
-                closestEntity->name = en.name;
-                closestEntity->position = en.position;
-                closestEntity->color = en.color;
-                closestEntity->BoundingBox = en.BoundingBox;
-                closestEntity->emotion = en.emotion;
-                closestEntity->direction = en.direction;
-                closestEntity->probability = en.probability;
-                closestEntity->lastUpdateTime = en.lastUpdateTime;
-                closestEntity->velocity.x = (en.position.x-closestEntity->position.x)/2;
-                closestEntity->velocity.x = (en.position.y-closestEntity->position.y)/2;
-                closestEntity->velocity.x = (en.position.z-closestEntity->position.z)/2;
-            } else {
-                Entities.entities.push_back(en);
-            }
-
-
-
         } else {
             ROS_INFO("rejecting an entity of name : %s because it's probability is %lf", en.name.c_str(), en.probability);
         }
         ++i;
+        AddEntity(en, 2);
     }
-
-    for (auto legs : Legs.people) {
-        if (legs.reliability > 0) {
-            sara_msgs::Entity en;
-            en.position = legs.pos;
-            en.probability = legs.reliability / 2;
-
-
-            sara_msgs::Entity *closestEntity{nullptr};
-            double minDist{0.5};
-            for (auto &en2 : Entities.entities){
-                // Calculate the weighted resemblances
-                double distance{ sqrt((en.position.x+en.velocity.x-en2.position.x-en2.velocity.x)*(en.position.x+en.velocity.x-en2.position.x-en2.velocity.x) +
-                (en.position.y+en.velocity.y-en2.position.y-en2.velocity.y)*(en.position.y+en.velocity.y-en2.position.y-en2.velocity.y) +
-                (en.position.z+en.velocity.z-en2.position.z-en2.velocity.z)*(en.position.z+en.velocity.z-en2.position.z-en2.velocity.z))};
-
-            if (distance < minDist){
-                    closestEntity = &en2;
-                    minDist = distance;
-                }
-            }
-            if (closestEntity != nullptr){
-                ROS_INFO("matching with old entity");
-                closestEntity->position = en.position;
-                closestEntity->direction = en.direction;
-                closestEntity->lastUpdateTime = en.lastUpdateTime;
-                closestEntity->probability = en.probability;
-                closestEntity->velocity.x = (en.position.x-closestEntity->position.x)/2;
-                closestEntity->velocity.x = (en.position.y-closestEntity->position.y)/2;
-                closestEntity->velocity.x = (en.position.z-closestEntity->position.z)/2;
-            } else {
-                Entities.entities.push_back(en);
-            }
-
-        }
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    //TODO:Face Recognition Call
-    //TODO:Gender Recognition Call
-
-
-
-    PublishVisualisation();
-
-    ROS_INFO("publishing %d entities", Entities.entities.size());
-    entityPublisher.publish(Entities);
 }
 
 
@@ -362,11 +331,4 @@ std::vector<sara_msgs::BoundingBox2D> ConvertBB(std::vector<darknet_ros_msgs::Bo
         BBsOut.push_back(BBOut);
     }
     return BBsOut;
-}
-
-
-int main(int argc, char **argv) {
-
-    DataCollector Collector(argc, argv);
-
 }

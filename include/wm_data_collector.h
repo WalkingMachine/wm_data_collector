@@ -27,11 +27,13 @@ class DataCollector {
     ros::Publisher entityPublisher;
     ros::Publisher peoplePublisher;
     ros::Publisher markerPublisher;
+
     sensor_msgs::ImageConstPtr Image;
     sensor_msgs::ImageConstPtr DepthImage;
-    people_msgs::PositionMeasurementArray Legs;
 
     sara_msgs::Entities Entities;
+
+    int ProceduralID;
 
     // Receive an image from camera
     void ImageCallback(sensor_msgs::ImageConstPtr msg);
@@ -39,12 +41,16 @@ class DataCollector {
     void DepthImageCallback(sensor_msgs::ImageConstPtr msg);
     // Receive the Bounding Boxes from Yolo and process then
     void LegsCallback(people_msgs::PositionMeasurementArray msg);
-
-
     // Receive the Bounding Boxes from Yolo and process them
     void BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg);
 
+    // Update all entities with the new data received
+    void AddEntity(sara_msgs::Entity newEntity, int tolerance);
 
+    // Update entities
+    void UpdateEntities();
+
+    // Publish the visual clues onto markers for rviz
     void PublishVisualisation();
 
 public:
