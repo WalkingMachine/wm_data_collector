@@ -45,7 +45,7 @@ class DataCollector {
     void BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg);
 
     // Update all entities with the new data received
-    void AddEntity(sara_msgs::Entity newEntity, int tolerance);
+    void AddEntity(sara_msgs::Entity newEntity, double tolerance);
 
     // Update entities
     void UpdateEntities();

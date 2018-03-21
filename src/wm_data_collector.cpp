@@ -87,7 +87,7 @@ void DataCollector::UpdateEntities() {
     // Decay entities and remove the old ones
     int i{0};
     for (auto &en : Entities.entities) {
-        en.probability *= 0.9;
+        en.probability *= 0.96;
         if (en.probability < 0.1) {  // TODO: use parameters
             Entities.entities.erase(Entities.entities.begin()+i);
             i--;
@@ -99,6 +99,21 @@ void DataCollector::UpdateEntities() {
         en.position.x += en.velocity.x *= 0.9;  // TODO: use parameters
         en.position.y += en.velocity.y *= 0.9;
         en.position.z += en.velocity.z *= 0.9;
+
+        // If the entity is a person
+        if (en.name == "person") {
+            people_msgs::PositionMeasurement person;
+            en.position.z = 0;
+
+            // We publish a seed for leg detector
+            person.pos.x = en.position.x;
+            person.pos.y = en.position.y;
+            person.object_id = en.ID;
+            person.initialization = 0;
+            person.name = en.name;
+            person.reliability = en.probability;
+            peoplePublisher.publish(person);
+        }
     }
 }
 
@@ -108,10 +123,12 @@ void DataCollector::UpdateEntities() {
  * @param newEntity 		The entity to add
  * @param tolerance 		the level of tolerance for the match
  */
-void DataCollector::AddEntity(sara_msgs::Entity newEntity, int tolerance) {
+void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance) {
 
-    if (newEntity.probability < 0.1)
+    if (newEntity.probability < 0.1){
+        ROS_INFO("rejecting entity %s", newEntity.name.c_str());
         return;
+    }
 
     sara_msgs::Entity *closestEntity{nullptr};
     double minDist{tolerance};
@@ -119,30 +136,33 @@ void DataCollector::AddEntity(sara_msgs::Entity newEntity, int tolerance) {
         // Calculate the weighted resemblances
         double distance{ sqrt((newEntity.position.x-en2.position.x)*(newEntity.position.x-en2.position.x) +
                               (newEntity.position.y-en2.position.y)*(newEntity.position.y-en2.position.y) +
-                              (newEntity.position.z-en2.position.z)*(newEntity.position.z-en2.position.z))};
-        if (newEntity.name != "") distance += (newEntity.name == en2.name)*0.5;  // TODO: use parameters
-        if (newEntity.color != "") distance += (newEntity.color == en2.color)*0.1;  // TODO: use parameters
-        if (newEntity.gender != "") distance += (newEntity.gender == en2.gender)*0.1;  // TODO: use parameters
+                              (newEntity.position.z-en2.position.z)*(newEntity.position.z-en2.position.z)*2)};
+        if (newEntity.name != "" && en2.name != "") distance += (newEntity.name != en2.name);  // TODO: use parameters
+        if (newEntity.color != "" && en2.color != "") distance += (newEntity.color != en2.color)*0.6;  // TODO: use parameters
+        if (newEntity.gender != "" && en2.gender != "") distance += (newEntity.gender != en2.gender)*0.1;  // TODO: use parameters
+        distance *= 1-en2.probability*newEntity.probability/2;
         if (distance < minDist){
             closestEntity = &en2;
             minDist = distance;
         }
     }
     if (closestEntity != nullptr){
-        ROS_INFO("matching with old entity");
+//        ROS_INFO("matching with old entity");
         if (newEntity.name != "") closestEntity->name = newEntity.name;
         if (newEntity.color != "") closestEntity->color = newEntity.color;
         if (newEntity.gender != "") closestEntity->gender = newEntity.gender;
         if (newEntity.emotion != "") closestEntity->emotion = newEntity.emotion;
         if (newEntity.direction != 0) closestEntity->direction = newEntity.direction;
         if (closestEntity->ID == 0) closestEntity->ID = newEntity.ID;
-        closestEntity->position = newEntity.position;
+        closestEntity->position.x += (newEntity.position.x-closestEntity->position.x)*0.3*newEntity.probability;
+        closestEntity->position.y += (newEntity.position.y-closestEntity->position.y)*0.3*newEntity.probability;
+        closestEntity->position.z += (newEntity.position.z-closestEntity->position.z)*0.1*newEntity.probability;
         closestEntity->BoundingBox = newEntity.BoundingBox;
-        closestEntity->probability = newEntity.probability;
+        if (newEntity.probability > closestEntity->probability) closestEntity->probability = newEntity.probability;
         closestEntity->lastUpdateTime = newEntity.lastUpdateTime;
-        closestEntity->velocity.x = (newEntity.position.x-closestEntity->position.x)/2;
-        closestEntity->velocity.x = (newEntity.position.y-closestEntity->position.y)/2;
-        closestEntity->velocity.x = (newEntity.position.z-closestEntity->position.z)/2;
+//        closestEntity->velocity.x = (newEntity.position.x-closestEntity->position.x)/6;
+//        closestEntity->velocity.x = (newEntity.position.y-closestEntity->position.y)/6;
+//        closestEntity->velocity.x = (newEntity.position.z-closestEntity->position.z)/6;
     } else {
         newEntity.ID = ProceduralID++;
         Entities.entities.push_back(newEntity);
@@ -158,7 +178,7 @@ void DataCollector::PublishVisualisation() {
     for (auto &en : Entities.entities) {
         // Publish position dot
 
-        if (en.name != "") {
+        if (en.probability > 0.1) {
             {
                 visualization_msgs::Marker m;
                 m.header.stamp = ros::Time::now();
@@ -187,7 +207,10 @@ void DataCollector::PublishVisualisation() {
                 m.ns = "entities";
                 m.id = i++;
                 m.type = m.TEXT_VIEW_FACING;
-                m.text = en.name;
+                std::string temp;
+                temp = en.color+" "+en.name + ":" + std::to_string(en.ID);
+
+                m.text = temp;
                 m.pose.position.x = en.position.x;
                 m.pose.position.y = en.position.y;
                 m.pose.position.z = en.position.z + 0.5;
@@ -236,7 +259,8 @@ void DataCollector::LegsCallback(people_msgs::PositionMeasurementArray Legs) {
             sara_msgs::Entity en;
             en.position = legs.pos;
             en.probability = legs.reliability / 2;
-            AddEntity(en, 2);
+            en.name = "person";
+            AddEntity(en, 0.5);
         }
     }
 }
@@ -288,27 +312,19 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
         if (Colors.size() == BoundingBoxes3D.size())
             en.color = Colors[i].color;
         // Looking for the closest entity from the past
-        if (en.probability > 0) {
-
+        if (en.probability > 0.5) {
             // If the entity is a person
+            ROS_INFO("adding an entity of name : %s because it's probability is %lf", en.name.c_str(), en.probability);
             if (en.name == "person") {
-                people_msgs::PositionMeasurement person;
                 en.position.z = 0;
-
-                // We publish a seed for leg detector
-                person.pos.x = en.position.x;
-                person.pos.y = en.position.y;
-                person.object_id = en.ID;
-                person.initialization = 1;
-                person.name = en.name;
-                person.reliability = en.probability;
-                peoplePublisher.publish(person);
+                AddEntity(en, 1);
+            }else{
+                AddEntity(en, 0.8);
             }
         } else {
-            ROS_INFO("rejecting an entity of name : %s because it's probability is %lf", en.name.c_str(), en.probability);
+            ROS_WARN("rejecting an entity of name : %s because it's probability is %lf", en.name.c_str(), en.probability);
         }
         ++i;
-        AddEntity(en, 2);
     }
 }
 
