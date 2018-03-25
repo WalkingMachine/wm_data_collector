@@ -6,5 +6,14 @@
     <param name="legs_topic" value="/people_tracker_measurements"/>
     <param name="entities_marker_topic" value="/entities_marker"/>
     <param name="leg_distance" value="1"/>
+    <param name="leg_tolerance" value="0.6"/>
+    <param name="camera_tolerance" value="0.8"/>
+    <param name="people_tolerance" value="0.8"/>
+    <param name="entity_decay" value="0.99"/>
+    <param name="entity_friction" value="0.99"/>
+    <param name="name_weight" value="1.0"/>
+    <param name="person_weight" value="1.0"/>
+    <param name="color_weight" value="0.6"/>
+    <param name="gender_weight" value="0.6"/>
 	<node  name="wm_data_collector"	pkg="wm_data_collector"	type="wm_data_collector" output="screen"/>
 </launch>

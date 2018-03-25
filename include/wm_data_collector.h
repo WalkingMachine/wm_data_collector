@@ -16,9 +16,27 @@
 #include "sara_msgs/Entities.h"
 #include "people_msgs/PositionMeasurementArray.h"
 #include "visualization_msgs/Marker.h"
-
-
 #include <sstream>
+
+
+std::string _CAMERA_TOPIC;
+std::string _DEPTH_CAMERA_TOPIC;
+std::string _YOLO_TOPIC;
+std::string _ENTITIES;
+std::string _PEOPLE_TOPIC;
+std::string _LEGS_TOPIC;
+std::string _MARKER_TOPIC;
+double _LEG_DISTANCE;
+double _LEG_TOLERANCE;
+double _CAMERA_TOLERANCE;
+double _PEOPLE_TOLERANCE;
+double _ENTITY_DECAY;
+double _ENTITY_FRICTION;
+double _NAME_WEIGHT;
+double _PERSON_WEIGHT;
+double _COLOR_WEIGHT;
+double _GENDER_WEIGHT;
+
 
 class DataCollector {
 
