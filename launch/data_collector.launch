@@ -10,7 +10,7 @@
     <param name="camera_tolerance" value="0.8"/>
     <param name="people_tolerance" value="0.8"/>
     <param name="entity_decay" value="0.99"/>
-    <param name="entity_friction" value="0.99"/>
+    <param name="entity_friction" value="0.9"/>
     <param name="name_weight" value="1.0"/>
     <param name="person_weight" value="1.0"/>
     <param name="color_weight" value="0.6"/>

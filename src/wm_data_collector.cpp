@@ -126,6 +126,8 @@ void DataCollector::UpdateEntities() {
             peoplePublisher.publish(person);
         }
     }
+
+    entityPublisher.publish(Entities);
 }
 
 
@@ -178,9 +180,9 @@ void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance) {
         closestEntity->BoundingBox = newEntity.BoundingBox;
         if (newEntity.probability > closestEntity->probability) closestEntity->probability = newEntity.probability;
         closestEntity->lastUpdateTime = newEntity.lastUpdateTime;
-        closestEntity->velocity.x = (newEntity.position.x-closestEntity->position.x)/2;
-        closestEntity->velocity.y = (newEntity.position.y-closestEntity->position.y)/2;
-        closestEntity->velocity.z = (newEntity.position.z-closestEntity->position.z)/6;
+        closestEntity->velocity.x = (newEntity.position.x-closestEntity->position.x)/10;
+        closestEntity->velocity.y = (newEntity.position.y-closestEntity->position.y)/10;
+        closestEntity->velocity.z = (newEntity.position.z-closestEntity->position.z)/20;
     } else {
 
         // If not, we simply add the entity to the list
