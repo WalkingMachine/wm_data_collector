@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
         darknet_ros_msgs
         sara_msgs
         message_generation
+        people_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -93,6 +94,7 @@ catkin_package(
         sensor_msgs
         darknet_ros_msgs
         wm_color_detector
+        people_msgs
 )
 
 ###########
