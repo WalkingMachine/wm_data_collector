@@ -178,7 +178,8 @@ void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance) {
         closestEntity->position.y += (newEntity.position.y-closestEntity->position.y)*0.2*newEntity.probability;
         closestEntity->position.z += (newEntity.position.z-closestEntity->position.z)*0.2*newEntity.probability;
         closestEntity->BoundingBox = newEntity.BoundingBox;
-        if (newEntity.probability > closestEntity->probability) closestEntity->probability = newEntity.probability;
+        closestEntity->probability += (newEntity.probability-closestEntity->probability)*0.2;
+
         closestEntity->lastUpdateTime = newEntity.lastUpdateTime;
         closestEntity->velocity.x = (newEntity.position.x-closestEntity->position.x)/10;
         closestEntity->velocity.y = (newEntity.position.y-closestEntity->position.y)/10;
@@ -187,6 +188,7 @@ void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance) {
 
         // If not, we simply add the entity to the list
         newEntity.ID = ProceduralID++;
+        newEntity.Probability *= 0.2;
         Entities.entities.push_back(newEntity);
     }
 }
