@@ -31,11 +31,14 @@ double _LEG_TOLERANCE;
 double _CAMERA_TOLERANCE;
 double _PEOPLE_TOLERANCE;
 double _ENTITY_DECAY;
+double _CUMULATION;
 double _ENTITY_FRICTION;
 double _NAME_WEIGHT;
 double _PERSON_WEIGHT;
 double _COLOR_WEIGHT;
 double _GENDER_WEIGHT;
+double _THRESHOLD;
+bool _NORMALISE;
 
 
 class DataCollector {

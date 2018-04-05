@@ -1,5 +1,5 @@
 //
-// Created by lucas on 21/01/18.
+// Created by lucas and Philippe on 21/01/18.
 //
 
 #include "wm_data_collector.h"
@@ -46,6 +46,8 @@ DataCollector::DataCollector(int argc, char **argv) {
     ROS_INFO("camera_tolerance = %lf", _CAMERA_TOLERANCE);
     nh.param("people_tolerance", _PEOPLE_TOLERANCE, 0.8);
     ROS_INFO("people_tolerance = %lf", _PEOPLE_TOLERANCE);
+    nh.param("entity_cumulation", _CUMULATION, 0.2);
+    ROS_INFO("entity_cumulation = %lf", _CUMULATION);
     nh.param("entity_decay", _ENTITY_DECAY, 0.99);
     ROS_INFO("entity_decay = %lf", _ENTITY_DECAY);
     nh.param("entity_friction", _ENTITY_FRICTION, 0.99);
@@ -58,6 +60,10 @@ DataCollector::DataCollector(int argc, char **argv) {
     ROS_INFO("color_weight = %lf", _COLOR_WEIGHT);
     nh.param("gender_weight", _GENDER_WEIGHT, 0.6);
     ROS_INFO("gender_weight = %lf", _GENDER_WEIGHT);
+    nh.param("publication_threshold", _THRESHOLD, 0.5);
+    ROS_INFO("publication_threshold = %lf", _THRESHOLD);
+    nh.param("normalise_probability", _NORMALISE, false);
+    ROS_INFO("normalise_probability = %lf", _NORMALISE);
 
 
     // Subscribers
@@ -95,7 +101,21 @@ DataCollector::DataCollector(int argc, char **argv) {
  */
 void DataCollector::UpdateEntities() {
 
+    // Normalise the probabilities
+    if (_NORMALISE) {
+        double MaxProb{0};
+        for (auto &en : Entities.entities)
+            if (en.probability > MaxProb)
+                MaxProb = en.probability;
+        if (MaxProb > 0)
+            for (auto &en : Entities.entities)
+                en.probability /= MaxProb;
+    }
+
     // Decay entities and remove the old ones
+    for (auto &en : Entities.entities)
+        en.probability *= _ENTITY_DECAY;
+
     int i{0};
     for (auto &en : Entities.entities) {
         en.probability *= _ENTITY_DECAY;
@@ -105,6 +125,7 @@ void DataCollector::UpdateEntities() {
         }
         i++;
     }
+
     // Increment velocity to the position and apply virtual friction
     for (auto &en : Entities.entities) {
         en.position.x += en.velocity.x *= _ENTITY_FRICTION;
@@ -126,6 +147,11 @@ void DataCollector::UpdateEntities() {
             peoplePublisher.publish(person);
         }
     }
+
+    sara_msgs::Entities Publication;
+    for (auto &en : Entities.entities)
+        if (en.probability > _THRESHOLD)
+            Publication.entities.push_back(en);
 
     entityPublisher.publish(Entities);
 }
@@ -178,7 +204,7 @@ void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance) {
         closestEntity->position.y += (newEntity.position.y-closestEntity->position.y)*0.2*newEntity.probability;
         closestEntity->position.z += (newEntity.position.z-closestEntity->position.z)*0.2*newEntity.probability;
         closestEntity->BoundingBox = newEntity.BoundingBox;
-        closestEntity->probability += (newEntity.probability-closestEntity->probability)*0.2;
+        closestEntity->probability += newEntity.probability*_CUMULATION;
 
         closestEntity->lastUpdateTime = newEntity.lastUpdateTime;
         closestEntity->velocity.x = (newEntity.position.x-closestEntity->position.x)/10;
@@ -188,7 +214,7 @@ void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance) {
 
         // If not, we simply add the entity to the list
         newEntity.ID = ProceduralID++;
-        newEntity.Probability *= 0.2;
+        newEntity.probability *= _CUMULATION;
         Entities.entities.push_back(newEntity);
     }
 }
@@ -202,7 +228,7 @@ void DataCollector::PublishVisualisation() {
     for (auto &en : Entities.entities) {
 
 
-        if (en.name != "legs") {
+        if (en.probability > _THRESHOLD) {
             {  // Publish position dot
                 visualization_msgs::Marker m;
                 m.header.stamp = ros::Time::now();
