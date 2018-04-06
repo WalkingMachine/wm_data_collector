@@ -103,7 +103,7 @@ void DataCollector::UpdateEntities() {
 
     // Normalise the probabilities
     if (_NORMALISE) {
-        double MaxProb{0};
+        double MaxProb{1};
         for (auto &en : Entities.entities)
             if (en.probability > MaxProb)
                 MaxProb = en.probability;
