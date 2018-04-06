@@ -7,9 +7,10 @@ legs_topic: /people_tracker_measurements
 entities_marker_topic: /entities_marker
 leg_distance: 1
 leg_tolerance: 0.6
-camera_tolerance: 0.8
-people_tolerance: 0.8
+camera_tolerance: 1.0
+people_tolerance: 1.0
 entity_decay: 0.99
+entity_cumulation: 0.2
 entity_friction: 0.9
 name_weight: 1.0
 person_weight: 1.0

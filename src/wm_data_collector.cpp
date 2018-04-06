@@ -182,7 +182,7 @@ void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance) {
             distance -= _PERSON_WEIGHT;
         if (!newEntity.color.empty() && !en2.color.empty()) distance += (newEntity.color != en2.color)*_COLOR_WEIGHT;
         if (!newEntity.gender.empty() && !en2.gender.empty()) distance += double(newEntity.gender != en2.gender)*_GENDER_WEIGHT;
-        distance *= 1-en2.probability*newEntity.probability/2;
+        distance *= (10-en2.probability*newEntity.probability/2)/10;
         if (distance < minDist){
             closestEntity = &en2;
             minDist = distance;
@@ -207,9 +207,9 @@ void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance) {
         closestEntity->probability += newEntity.probability*_CUMULATION;
 
         closestEntity->lastUpdateTime = newEntity.lastUpdateTime;
-        closestEntity->velocity.x = (newEntity.position.x-closestEntity->position.x)/10;
-        closestEntity->velocity.y = (newEntity.position.y-closestEntity->position.y)/10;
-        closestEntity->velocity.z = (newEntity.position.z-closestEntity->position.z)/20;
+        closestEntity->velocity.x = (newEntity.position.x-closestEntity->position.x)/5;
+        closestEntity->velocity.y = (newEntity.position.y-closestEntity->position.y)/5;
+        closestEntity->velocity.z = (newEntity.position.z-closestEntity->position.z)/10;
     } else {
 
         // If not, we simply add the entity to the list
@@ -270,6 +270,29 @@ void DataCollector::PublishVisualisation() {
                 m.color.a = 1;
                 markerPublisher.publish(m);
             }
+            {  // Publish name on top
+                visualization_msgs::Marker m;
+                m.header.stamp = ros::Time::now();
+                m.lifetime = ros::Duration(0.5);
+                m.header.frame_id = "/map";
+                m.ns = "entities";
+                m.id = i++;
+                m.type = m.TEXT_VIEW_FACING;
+                std::string temp;
+                temp = std::to_string(en.probability);
+                m.text = temp;
+                m.pose.position.x = en.position.x;
+                m.pose.position.y = en.position.y;
+                m.pose.position.z = en.position.z + 0.4;
+                m.scale.x = 0.1;
+                m.scale.y = 0.1;
+                m.scale.z = 0.1;
+                m.color.r = 1;
+                m.color.g = 1;
+                m.color.b = 1;
+                m.color.a = 1;
+                markerPublisher.publish(m);
+            }
         }
     }
 }
@@ -305,7 +328,7 @@ void DataCollector::LegsCallback(people_msgs::PositionMeasurementArray Legs) {
         if (legs.reliability > 0) {
             sara_msgs::Entity en;
             en.position = legs.pos;
-            en.probability = legs.reliability / 2;
+            en.probability = legs.reliability / 8;
             en.name = "legs";
             AddEntity(en, _LEG_TOLERANCE);
         }
