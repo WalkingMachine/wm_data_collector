@@ -39,7 +39,9 @@ double _COLOR_WEIGHT;
 double _GENDER_WEIGHT;
 double _THRESHOLD;
 bool _NORMALISE;
-
+double _MAX_PROBABILITY;
+double _SPEED_RATIO;
+double _LEG_PROBABILITY_RATIO;
 
 class DataCollector {
 
@@ -73,6 +75,12 @@ class DataCollector {
 
     // Publish the visual clues onto markers for rviz
     void PublishVisualisation();
+
+    // Compare two entities and return their difference level
+    double CompareEntities(sara_msgs::Entity &en1, sara_msgs::Entity &en2, double MaxDistance);
+
+    // Merge two entities into one and return the result
+    void MergeEntities(sara_msgs::Entity &en1, sara_msgs::Entity &en2);
 
 public:
 
