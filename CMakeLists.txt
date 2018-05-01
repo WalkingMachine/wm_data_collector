@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
         sensor_msgs
         darknet_ros_msgs
         sara_msgs
+        image_transport
         message_generation
         people_msgs
 )
@@ -113,7 +114,7 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(${PROJECT_NAME}
         src/wm_data_collector.cpp
-        )
+        src/ColorComparator.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
