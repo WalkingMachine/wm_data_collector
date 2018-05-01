@@ -17,6 +17,7 @@
 #include "people_msgs/PositionMeasurementArray.h"
 #include "visualization_msgs/Marker.h"
 #include <sstream>
+#include <image_transport/image_transport.h>
 
 
 std::string _CAMERA_TOPIC;
@@ -26,22 +27,34 @@ std::string _ENTITIES;
 std::string _PEOPLE_TOPIC;
 std::string _LEGS_TOPIC;
 std::string _MARKER_TOPIC;
-double _LEG_DISTANCE;
-double _LEG_TOLERANCE;
-double _CAMERA_TOLERANCE;
-double _PEOPLE_TOLERANCE;
+
 double _ENTITY_DECAY;
-double _CUMULATION;
 double _ENTITY_FRICTION;
+
 double _NAME_WEIGHT;
-double _PERSON_WEIGHT;
 double _COLOR_WEIGHT;
 double _GENDER_WEIGHT;
+
 double _THRESHOLD;
-bool _NORMALISE;
 double _MAX_PROBABILITY;
 double _SPEED_RATIO;
-double _LEG_PROBABILITY_RATIO;
+
+double _LEG_MERGE_TOLERANCE;
+double _LEG_MERGE_MAX_DISTANCE;
+double _LEG_MERGE_CUMULATION;
+
+double _CAMERA_MERGE_TOLERANCE;
+double _CAMERA_MERGE_MAX_DISTANCE;
+double _CAMERA_MERGE_CUMULATION;
+
+double _PEOPLE_MERGE_TOLERANCE;
+double _PEOPLE_MERGE_MAX_DISTANCE;
+double _PEOPLE_MERGE_CUMULATION;
+
+double _POST_MERGE_TOLERENCE;
+double _POST_MERGE_MAX_DISTANCE;
+double _POST_MERGE_PEOPLE_TOLERENCE_RATIO;
+double _POST_MERGE_PEOPLE_MAX_DISTANCE;
 
 class DataCollector {
 
@@ -56,19 +69,28 @@ class DataCollector {
 
     sara_msgs::Entities Entities;
 
+    //! ROS node handle.
+    ros::NodeHandle nodeHandle_;
+
+    //! Advertise and subscribe to image topics.
+    image_transport::Subscriber imageSubscriber_;
+    image_transport::Subscriber imageDepthSubscriber_;
+    image_transport::ImageTransport imageTransport_;
+
     int ProceduralID;
 
     // Receive an image from camera
-    void ImageCallback(sensor_msgs::ImageConstPtr msg);
+    void ImageCallback(const sensor_msgs::ImageConstPtr& msg);
     // Receive a depth image from camera
-    void DepthImageCallback(sensor_msgs::ImageConstPtr msg);
+    void DepthImageCallback(const sensor_msgs::ImageConstPtr& msg);
+
     // Receive the Bounding Boxes from Yolo and process then
     void LegsCallback(people_msgs::PositionMeasurementArray msg);
     // Receive the Bounding Boxes from Yolo and process them
     void BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg);
 
     // Update all entities with the new data received
-    void AddEntity(sara_msgs::Entity newEntity, double tolerance);
+    void AddEntity(sara_msgs::Entity newEntity, double tolerance, double MaxDistance);
 
     // Update entities
     void UpdateEntities();
@@ -84,7 +106,7 @@ class DataCollector {
 
 public:
 
-    DataCollector(int argc, char **argv);
+    DataCollector(ros::NodeHandle nh);
 
 };
 
