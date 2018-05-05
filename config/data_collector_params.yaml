@@ -1,16 +1,16 @@
-camera_topic: /darknet/sync_rgb_image
-depth_camera_topic: /darknet/sync_depth_image
+camera_topic: /darknet_ros/sync/rgb/image
+depth_camera_topic: /darknet_ros/sync/depth/image
 yolo_topic: /darknet_ros/bounding_boxes
 people_topic: /people_tracker_filter
 legs_topic: /leg_tracker_measurements
 entities_marker_topic: /entities_marker
 
 # Entity kinematic parameters
-entity_decay: 0.02
+entity_decay: 0.018
 entity_friction: 0.7
 publication_threshold: 0.2
 max_probability: 1
-speed_ratio: 2.5
+speed_ratio: 5
 
 # post merge parameters
 post_merge_tolerence: 1.0
@@ -33,5 +33,5 @@ people_merge_cumulation: 0.9
 
 # Weights parameters
 name_weight: 1
-color_weight: 0.2
+color_weight: 0.4
 gender_weight: 0.5

@@ -227,8 +227,8 @@ double DataCollector::CompareEntities(sara_msgs::Entity &en1, sara_msgs::Entity 
                             (en1.position.z-en2.position.z)*(en1.position.z-en2.position.z))};
 
     // Check if the entities are from the same "frame" and reduce the tolerance if so.
-    if (abs(int(en1.lastUpdateTime.toNSec() - en2.lastUpdateTime.toNSec())) < 50000000)
-        Difference *= 2.0;
+    if (abs(int(en1.lastUpdateTime.toNSec() - en2.lastUpdateTime.toNSec())) < 10000000)
+        Difference *= 4.0;
 
     // If the distance is furter than the max, we return an infinite value
     if (Difference > MaxDistance ) return DBL_MAX;
@@ -281,7 +281,7 @@ void DataCollector::MergeEntities(sara_msgs::Entity &Target, sara_msgs::Entity &
     if (!Target.direction || Target.direction && Source.direction && Source.probability > Target.probability)
         Target.direction = Source.direction;
 
-    Target.lastUpdateTime = ros::Time::now();
+    Target.lastUpdateTime = Source.lastUpdateTime;
     Target.aliases.insert(Target.aliases.end(), Source.aliases.begin(), Source.aliases.end());
 
     Target.velocity.x += (-Target.position.x+Source.position.x)/_SPEED_RATIO;
