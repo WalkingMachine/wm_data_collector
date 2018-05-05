@@ -469,10 +469,8 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
     if (!Image || !DepthImage)
         return;
 
-    ros::Time now = ros::Time::now();
-
     // Convert from darknet format to sara format
-    auto BoundingBoxes2D = ConvertBB(msg.boundingBoxes);
+    auto BoundingBoxes2D = ConvertBB(msg);
 
     // Convert the 2D bounding boxes into 3D ones
     wm_frame_to_box::GetBoundingBoxes3D BBService;
@@ -490,22 +488,22 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
     auto Colors = ColorService.response.colors;
 
     // Check if the number of elements matches
-    if (Colors.size() != BoundingBoxes3D.size()) {
+    if (Colors.size() != BoundingBoxes3D.boundingBoxes.size()) {
         ROS_ERROR("An error occurred with Color Recognition! (numbers doesn't match)");
         return;
     }
 
     // Create the entities from the bounding boxes
     int i{0};
-    for (auto &boundingBox : BoundingBoxes3D) {
+    for (auto &boundingBox : BoundingBoxes3D.boundingBoxes) {
 
         sara_msgs::Entity en;
         en.BoundingBox = boundingBox;
         en.name = boundingBox.Class;
         en.position = boundingBox.Center;
         en.probability = boundingBox.probability;
-        en.lastUpdateTime = now;
-        if (Colors.size() == BoundingBoxes3D.size())
+        en.lastUpdateTime = BoundingBoxes3D.header.stamp;
+        if (Colors.size() == BoundingBoxes3D.boundingBoxes.size())
             en.color = Colors[i].color;
         // Looking for the closest entity from the past
         if (en.probability > 0.5) {
@@ -534,9 +532,9 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
  * @param DBBs 		Darknet bounding boxes
  * @return BBsOut 		sara bounding boxes
  */
-std::vector<sara_msgs::BoundingBox2D> ConvertBB(std::vector<darknet_ros_msgs::BoundingBox> DBBs) {
-    std::vector<sara_msgs::BoundingBox2D> BBsOut;
-    for (auto DBB : DBBs) {
+sara_msgs::BoundingBoxes2D ConvertBB(darknet_ros_msgs::BoundingBoxes DBBs) {
+    sara_msgs::BoundingBoxes2D BBsOut;
+    for (auto DBB : DBBs.boundingBoxes) {
         sara_msgs::BoundingBox2D BBOut;
         BBOut.Class = DBB.Class;
         BBOut.probability = DBB.probability;
@@ -544,7 +542,8 @@ std::vector<sara_msgs::BoundingBox2D> ConvertBB(std::vector<darknet_ros_msgs::Bo
         BBOut.xmin = DBB.xmin;
         BBOut.ymax = DBB.ymax;
         BBOut.ymin = DBB.ymin;
-        BBsOut.push_back(BBOut);
+        BBsOut.boundingBoxes.push_back(BBOut);
     }
+    BBsOut.header = DBBs.header;
     return BBsOut;
 }

@@ -110,6 +110,6 @@ public:
 
 };
 
-std::vector<sara_msgs::BoundingBox2D> ConvertBB(std::vector<darknet_ros_msgs::BoundingBox>);
+sara_msgs::BoundingBoxes2D ConvertBB(darknet_ros_msgs::BoundingBoxes);
 
 #endif //PROJECT_WM_DATA_COLLECTOR_NODE_H
