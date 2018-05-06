@@ -3,49 +3,50 @@ subscribers:
   depth_camera_topic: /darknet_ros/sync/depth/image
   yolo_topic: /darknet_ros/bounding_boxes
   people_topic: /people_tracker_filter
-  legs_topic: /leg_tracker_measurements_
+  legs_topic: /leg_tracker_measurements
   entities_marker_topic: /entities_marker
 
 # Entity kinematic parameters
 entities:
-  decay: 0.01
-  friction: 0.6
-  publication_threshold: 0.2
+  decay: 0.008
+  friction: 0.8
+  publication_threshold: 0.5
   max_probability: 1
 
 # post merge parameters
 post_merge:
   object:
-    tolerence: 100
-    max_distance: 100
-    speed_ratio: 0.01
+    tolerence: 1.4
+    max_distance: 0.1
+    speed_ratio: 0.001
   person:
-    tolerence_ratio: 0.0
-    person_max_distance: 0.0
-    speed_ratio: 0.00
+    tolerence_ratio: 1
+    person_max_distance: 0.1
+    speed_ratio: 0.001
 
 # leg parameters
 leg_merge:
-  tolerance: 0.5
-  max_distance: 1
-  cumulation: 0.005
-  speed_ratio: 0.02
+  tolerance: 0.4
+  max_distance: 100
+  cumulation: 0.01
+  speed_ratio: 0.01
 
 # Camera parameters
 camera_merge:
   object:
-    tolerance: 0.2
-    max_distance: 0.5
-    cumulation: 0.9
-    speed_ratio: 0.05
+    tolerance: 0.28
+    max_distance: 0.8
+    cumulation: 0.018
+    speed_ratio: 0.1
   people:
-    merge_tolerance: 0
+    merge_tolerance: 0.8
     merge_max_distance: 1.2
-    merge_cumulation: 0.9
-    speed_ratio: 0.02
+    merge_cumulation: 0.018
+    speed_ratio: 0.3
 
 # Weights parameters
 weights:
   name: 1
   color: 0.4
   gender: 0.5
+  position: 0.1

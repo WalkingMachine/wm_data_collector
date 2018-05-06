@@ -70,6 +70,7 @@ DataCollector::DataCollector(ros::NodeHandle nh)
     nh.param("weights/name", _NAME_WEIGHT, 1.0);
     nh.param("weights/color", _COLOR_WEIGHT, 0.6);
     nh.param("weights/gender", _GENDER_WEIGHT, 0.6);
+    nh.param("weights/position", _POSITION_WEIGHT, 0.1);
 
     ROS_INFO("subscribing to camera topics");
     // Subscribers
@@ -115,51 +116,35 @@ void DataCollector::UpdateEntities() {
     // Limit the probability level
     for (auto &en : Entities.entities)
         en.probability = en.probability > _MAX_PROBABILITY ? _MAX_PROBABILITY : en.probability;
-//
-//    // Merge the entities that are too similar to each others
-//    for (auto en1 : Entities.entities) {
-//        sara_msgs::Entity *closestEntity{nullptr};
-//        double minDiff{_POST_MERGE_TOLERENCE};
-//        for (auto &en2 : Entities.entities) {
-//            if (en1.ID < en2.ID) {
-//
-//                double Difference{0};
-//                if ((en1.name == "person" || en1.name == "legs") && (en2.name == "person"  || en2.name == "legs"))
-//                    Difference = CompareEntities(en1, en2, _POST_MERGE_PEOPLE_MAX_DISTANCE)*_POST_MERGE_PEOPLE_TOLERENCE_RATIO;
-//                else
-//                    Difference = CompareEntities(en1, en2, _POST_MERGE_MAX_DISTANCE);
-//
-//                if (Difference < minDiff) {
-//                    closestEntity = &en2;
-//                    minDiff = Difference;
-//                }
-//            }
-//        }
-//        if (closestEntity != nullptr){
-//
-//            double dx{en1.position.x-closestEntity->position.x};
-//            double dy{en1.position.y-closestEntity->position.y};
-//            double dz{en1.position.z-closestEntity->position.z};
-//            double dist{sqrt(pow(dx,2)+pow(dy,2)+pow(dz,2))};
-//
-//            if (dist < 0.1) dist = 0.1;
-//            en1.position.x += dx / dist;
-//            en1.position.y += dy / dist;
-//            en1.position.z += dz / dist;
-//            closestEntity->position.x -= dx / dist;
-//            closestEntity->position.y -= dy / dist;
-//            closestEntity->position.z -= dz / dist;
-//
-//
-//
-//            if (dist < 0.01) {
-//                ROS_INFO("Merging existing entities");
-//                MergeEntities(en1, *closestEntity, _POST_MERGE_SPEED_RATIO);
-//                closestEntity->probability = 0;
-//            }
-//        }
-//    }
-//
+
+    // Merge the entities that are too similar to each others
+    for (auto en1 : Entities.entities) {
+        sara_msgs::Entity *closestEntity{nullptr};
+        double minDiff{_POST_MERGE_TOLERENCE};
+        for (auto &en2 : Entities.entities) {
+            if (en1.ID < en2.ID) {
+
+                double Difference{0};
+                if (en1.name == "person" && en2.name == "person")
+                    Difference = CompareEntities(en1, en2, _POST_MERGE_PEOPLE_MAX_DISTANCE)*_POST_MERGE_PEOPLE_TOLERENCE_RATIO;
+                else
+                    Difference = CompareEntities(en1, en2, _POST_MERGE_MAX_DISTANCE);
+
+                if (Difference < minDiff) {
+                    closestEntity = &en2;
+                    minDiff = Difference;
+                }
+            }
+        }
+        if (closestEntity != nullptr){
+
+            ROS_INFO("Merging existing entities");
+            MergeEntities(en1, *closestEntity, _POST_MERGE_SPEED_RATIO);
+            closestEntity->probability = 0;
+
+        }
+    }
+
 
     int i{0};
     for (auto &en : Entities.entities) {
@@ -245,7 +230,7 @@ void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance, dou
 double DataCollector::CompareEntities(sara_msgs::Entity &en1, sara_msgs::Entity &en2, double MaxDistance=1) {
 
     // Check if the entities are from the same "frame".
-    if (en1.lastUpdateTime == en2.lastUpdateTime)
+    if (en1.lastUpdateTime == en2.lastUpdateTime && (en1.name != "leg" || en2.name != "leg"))
         return DBL_MAX;
 
     // Get the distance between the entities
@@ -256,7 +241,7 @@ double DataCollector::CompareEntities(sara_msgs::Entity &en1, sara_msgs::Entity 
     // If the distance is furter than the max, we return an infinite value
     if (Difference > MaxDistance ) return DBL_MAX;
 
-    Difference /= 10;
+    Difference *= _POSITION_WEIGHT;
     // If the entities are legs or persons, match them more
     if (!en1.name.empty() && !en2.name.empty())
         if (!(en1.name == "person" && en2.name == "legs" || en1.name == "legs" && en2.name == "person" ))
@@ -268,7 +253,6 @@ double DataCollector::CompareEntities(sara_msgs::Entity &en1, sara_msgs::Entity 
 
     // Consider the gender of the entities
     Difference += double(!en1.gender.empty() && !en2.gender.empty() & en1.gender != en2.gender)*_GENDER_WEIGHT;
-    std::cout << en1.color;
     return Difference;
 }
 
@@ -487,7 +471,23 @@ void DataCollector::LegsCallback(people_msgs::PositionMeasurementArray Legs) {
             en.probability = _LEG_MERGE_CUMULATION;
             en.name = "legs";
             en.lastUpdateTime = legs.header.stamp;
-            AddEntity(en, _LEG_MERGE_TOLERANCE, _LEG_MERGE_MAX_DISTANCE, _LEG_MERGE_SPEED_RATIO);
+
+            sara_msgs::Entity *closestEntity{nullptr};
+            double minDiff{_LEG_MERGE_TOLERANCE};
+            // Calculate the weighted resemblances and return the most resemblant one
+            for (auto &en2 : Entities.entities){
+                if (en2.name == "person") {
+                    double dx{en2.position.x - en.position.x};
+                    double dy{en2.position.y - en.position.y};
+                    double dist{sqrt(pow(dx, 2) + pow(dy, 2))};
+
+                    if (dist < 0.1) dist = 0.1;
+                    en2.velocity.x -= dx / dist / dist * _LEG_MERGE_SPEED_RATIO;
+                    en2.velocity.y -= dy / dist / dist * _LEG_MERGE_SPEED_RATIO;
+                    if (dist < _LEG_MERGE_TOLERANCE)
+                        en2.probability += _LEG_MERGE_CUMULATION;
+                }
+            }
         }
     }
 }

@@ -34,6 +34,7 @@ double _ENTITY_FRICTION;
 double _NAME_WEIGHT;
 double _COLOR_WEIGHT;
 double _GENDER_WEIGHT;
+double _POSITION_WEIGHT;
 
 double _THRESHOLD;
 double _MAX_PROBABILITY;
