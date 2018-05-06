@@ -12,16 +12,16 @@ float ColorComparison::CompareColors(std::string Color1, std::string Color2){
 }
 
 int ColorComparison::GetColorID(std::string Color){
-    if( Color == "red")     return  0;
-    if( Color == "orange")  return  1;
-    if( Color == "yellow")  return  2;
-    if( Color == "green")   return  3;
-    if( Color == "teal")    return  4;
-    if( Color == "blue")    return  5;
-    if( Color == "purple")  return  6;
-    if( Color == "brown")   return  7;
-    if( Color == "grey")    return  8;
-    if( Color == "white")   return  9;
-    if( Color == "black")   return  10;
+    if( Color == "Red")     return  0;
+    if( Color == "Orange")  return  1;
+    if( Color == "Yellow")  return  2;
+    if( Color == "Green")   return  3;
+    if( Color == "Cyan")    return  4;
+    if( Color == "Blue")    return  5;
+    if( Color == "Magenta") return  6;
+    if( Color == "Brown")   return  7;
+    if( Color == "Grey")    return  8;
+    if( Color == "White")   return  9;
+    if( Color == "Black")   return  10;
     return -1;
 }
