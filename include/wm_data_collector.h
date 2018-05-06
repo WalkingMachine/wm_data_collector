@@ -42,19 +42,24 @@ double _SPEED_RATIO;
 double _LEG_MERGE_TOLERANCE;
 double _LEG_MERGE_MAX_DISTANCE;
 double _LEG_MERGE_CUMULATION;
+double _LEG_MERGE_SPEED_RATIO;
 
 double _CAMERA_MERGE_TOLERANCE;
 double _CAMERA_MERGE_MAX_DISTANCE;
 double _CAMERA_MERGE_CUMULATION;
+double _CAMERA_MERGE_SPEED_RATIO;
 
-double _PEOPLE_MERGE_TOLERANCE;
-double _PEOPLE_MERGE_MAX_DISTANCE;
-double _PEOPLE_MERGE_CUMULATION;
+double _CAMERA_MERGE_PEOPLE_MERGE_TOLERANCE;
+double _CAMERA_MERGE_PEOPLE_MAX_DISTANCE;
+double _CAMERA_MERGE_PEOPLE_CUMULATION;
+double _CAMERA_MERGE_PEOPLE_SPEED_RATIO;
 
 double _POST_MERGE_TOLERENCE;
 double _POST_MERGE_MAX_DISTANCE;
+double _POST_MERGE_SPEED_RATIO;
 double _POST_MERGE_PEOPLE_TOLERENCE_RATIO;
 double _POST_MERGE_PEOPLE_MAX_DISTANCE;
+double _POST_MERGE_PEOPLE_SPEED_RATIO;
 
 class DataCollector {
 
@@ -90,7 +95,7 @@ class DataCollector {
     void BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg);
 
     // Update all entities with the new data received
-    void AddEntity(sara_msgs::Entity newEntity, double tolerance, double MaxDistance);
+    void AddEntity(sara_msgs::Entity newEntity, double tolerance, double MaxDistance, double ratio);
 
     // Update entities
     void UpdateEntities();
@@ -102,7 +107,7 @@ class DataCollector {
     double CompareEntities(sara_msgs::Entity &en1, sara_msgs::Entity &en2, double MaxDistance);
 
     // Merge two entities into one and return the result
-    void MergeEntities(sara_msgs::Entity &en1, sara_msgs::Entity &en2);
+    void MergeEntities(sara_msgs::Entity &en1, sara_msgs::Entity &en2, double ratio);
 
 public:
 
