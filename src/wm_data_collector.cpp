@@ -28,44 +28,49 @@ DataCollector::DataCollector(ros::NodeHandle nh)
 {
 
     // Get all parameters
-    nh.param("camera_topic", _CAMERA_TOPIC, std::string("/head_xtion/rgb/image_raw"));
-    nh.param("depth_camera_topic", _DEPTH_CAMERA_TOPIC, std::string("/head_xtion/depth/image_raw"));
-    nh.param("yolo_topic", _YOLO_TOPIC, std::string("/darknet_ros/bounding_boxes"));
-    nh.param("entities_topic", _ENTITIES, std::string("/entities"));
-    nh.param("people_topic", _PEOPLE_TOPIC, std::string("/people"));
-    nh.param("legs_topic", _LEGS_TOPIC, std::string("/legs"));
-    nh.param("entities_marker_topic", _MARKER_TOPIC, std::string("/entities_marker"));
+    nh.param("subscribers/camera_topic", _CAMERA_TOPIC, std::string("/head_xtion/rgb/image_raw"));
+    nh.param("subscribers/depth_camera_topic", _DEPTH_CAMERA_TOPIC, std::string("/head_xtion/depth/image_raw"));
+    nh.param("subscribers/yolo_topic", _YOLO_TOPIC, std::string("/darknet_ros/bounding_boxes"));
+    nh.param("subscribers/entities_topic", _ENTITIES, std::string("/entities"));
+    nh.param("subscribers/people_topic", _PEOPLE_TOPIC, std::string("/people"));
+    nh.param("subscribers/legs_topic", _LEGS_TOPIC, std::string("/legs"));
+    nh.param("subscribers/entities_marker_topic", _MARKER_TOPIC, std::string("/entities_marker"));
 
     // Entity kinematic parameters
-    nh.param("entity_decay", _ENTITY_DECAY, 0.01);
-    nh.param("entity_friction", _ENTITY_FRICTION, 0.99);
-    nh.param("publication_threshold", _THRESHOLD, 0.5);
-    nh.param("max_probability", _MAX_PROBABILITY, 1.0);
-    nh.param("speed_ratio", _SPEED_RATIO, 0.1);
+    nh.param("entities/decay", _ENTITY_DECAY, 0.01);
+    nh.param("entities/friction", _ENTITY_FRICTION, 0.8);
+    nh.param("entities/publication_threshold", _THRESHOLD, 0.5);
+    nh.param("entities/max_probability", _MAX_PROBABILITY, 1.0);
 
     // post marge parameters
-    nh.param("post_merge_tolerence", _POST_MERGE_TOLERENCE, 2.0);
-    nh.param("post_merge_max_distance", _POST_MERGE_MAX_DISTANCE, 0.116);
-    nh.param("post_merge_people_tolerence_ratio", _POST_MERGE_PEOPLE_TOLERENCE_RATIO, 2.0);
-    nh.param("post_merge_people_max_distance", _POST_MERGE_PEOPLE_MAX_DISTANCE, 0.116);
+    nh.param("post_merge/object/tolerence", _POST_MERGE_TOLERENCE, 2.0);
+    nh.param("post_merge/object/max_distance", _POST_MERGE_MAX_DISTANCE, 0.116);
+    nh.param("post_merge/object/speed_ratio", _POST_MERGE_SPEED_RATIO, 10.0);
+    nh.param("post_merge/people/tolerence_ratio", _POST_MERGE_PEOPLE_TOLERENCE_RATIO, 2.0);
+    nh.param("post_merge/people/max_distance", _POST_MERGE_PEOPLE_MAX_DISTANCE, 0.116);
+    nh.param("post_merge/people/speed_ratio", _POST_MERGE_PEOPLE_SPEED_RATIO, 10.0);
 
     // leg parameters
-    nh.param("leg_merge_tolerance", _LEG_MERGE_TOLERANCE, 0.6);
-    nh.param("leg_merge_max_distance", _LEG_MERGE_MAX_DISTANCE, 0.6);
-    nh.param("leg_merge_cumulation", _LEG_MERGE_CUMULATION, 0.6);
+    nh.param("leg_merge/tolerance", _LEG_MERGE_TOLERANCE, 0.6);
+    nh.param("leg_merge/max_distance", _LEG_MERGE_MAX_DISTANCE, 0.6);
+    nh.param("leg_merge/cumulation", _LEG_MERGE_CUMULATION, 0.6);
+    nh.param("leg_merge/speed_ratio", _LEG_MERGE_SPEED_RATIO, 10.0);
 
     // Camera parameters
-    nh.param("camera_merge_tolerance", _CAMERA_MERGE_TOLERANCE, 0.8);
-    nh.param("camera_merge_max_distance", _CAMERA_MERGE_MAX_DISTANCE, 0.8);
-    nh.param("camera_merge_cumulation", _CAMERA_MERGE_CUMULATION, 0.1);
-    nh.param("people_merge_tolerance", _PEOPLE_MERGE_TOLERANCE, 0.8);
-    nh.param("people_merge_max_distance", _PEOPLE_MERGE_MAX_DISTANCE, 0.8);
-    nh.param("people_merge_cumulation", _PEOPLE_MERGE_CUMULATION, 0.1);
+    nh.param("camera_merge/object/tolerance", _CAMERA_MERGE_TOLERANCE, 0.8);
+    nh.param("camera_merge/object/max_distance", _CAMERA_MERGE_MAX_DISTANCE, 0.8);
+    nh.param("camera_merge/object/cumulation", _CAMERA_MERGE_CUMULATION, 0.1);
+    nh.param("camera_merge/object/speed_ratio", _CAMERA_MERGE_SPEED_RATIO, 10.0);
+    nh.param("camera_merge/people/tolerance", _CAMERA_MERGE_PEOPLE_MERGE_TOLERANCE, 0.8);
+    nh.param("camera_merge/people/max_distance", _CAMERA_MERGE_PEOPLE_MAX_DISTANCE, 0.8);
+    nh.param("camera_merge/people/cumulation", _CAMERA_MERGE_PEOPLE_CUMULATION, 0.1);
+    nh.param("camera_merge/people/speed_ratio", _CAMERA_MERGE_PEOPLE_SPEED_RATIO, 10.0);
 
     // Weights parameters
-    nh.param("name_weight", _NAME_WEIGHT, 1.0);
-    nh.param("color_weight", _COLOR_WEIGHT, 0.6);
-    nh.param("gender_weight", _GENDER_WEIGHT, 0.6);
+    nh.param("weights/name", _NAME_WEIGHT, 1.0);
+    nh.param("weights/color", _COLOR_WEIGHT, 0.6);
+    nh.param("weights/gender", _GENDER_WEIGHT, 0.6);
+    nh.param("weights/position", _POSITION_WEIGHT, 0.1);
 
     ROS_INFO("subscribing to camera topics");
     // Subscribers
@@ -120,7 +125,7 @@ void DataCollector::UpdateEntities() {
             if (en1.ID < en2.ID) {
 
                 double Difference{0};
-                if (en1.name == "person", en2.name == "person")
+                if (en1.name == "person" && en2.name == "person")
                     Difference = CompareEntities(en1, en2, _POST_MERGE_PEOPLE_MAX_DISTANCE)*_POST_MERGE_PEOPLE_TOLERENCE_RATIO;
                 else
                     Difference = CompareEntities(en1, en2, _POST_MERGE_MAX_DISTANCE);
@@ -132,9 +137,11 @@ void DataCollector::UpdateEntities() {
             }
         }
         if (closestEntity != nullptr){
+
             ROS_INFO("Merging existing entities");
-            MergeEntities(en1, *closestEntity);
+            MergeEntities(en1, *closestEntity, _POST_MERGE_SPEED_RATIO);
             closestEntity->probability = 0;
+
         }
     }
 
@@ -142,6 +149,7 @@ void DataCollector::UpdateEntities() {
     int i{0};
     for (auto &en : Entities.entities) {
         if (en.probability <= 0) {
+            ROS_INFO("removing %s %d from list", en.name.c_str(), en.ID);
             Entities.entities.erase(Entities.entities.begin()+i);
             //ROS_INFO("deleting entity");
             i--;
@@ -185,7 +193,7 @@ void DataCollector::UpdateEntities() {
  * @param newEntity 		The entity to add
  * @param tolerance 		the level of tolerance for the match
  */
-void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance, double MaxDistance) {
+void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance, double MaxDistance, double ratio) {
 
     sara_msgs::Entity *closestEntity{nullptr};
     double minDiff{tolerance};
@@ -200,7 +208,7 @@ void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance, dou
 
     // If the difference is tolerated, we merge the entities
     if (closestEntity != nullptr){
-        MergeEntities(*closestEntity, newEntity);
+        MergeEntities(*closestEntity, newEntity, ratio);
     } else {
         // If not, we simply add the entity to the list
         newEntity.ID = ProceduralID++;
@@ -221,20 +229,19 @@ void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance, dou
  */
 double DataCollector::CompareEntities(sara_msgs::Entity &en1, sara_msgs::Entity &en2, double MaxDistance=1) {
 
+    // Check if the entities are from the same "frame".
+    if (en1.lastUpdateTime == en2.lastUpdateTime && (en1.name != "leg" || en2.name != "leg"))
+        return DBL_MAX;
+
     // Get the distance between the entities
     double Difference{ sqrt((en1.position.x-en2.position.x)*(en1.position.x-en2.position.x) +
                             (en1.position.y-en2.position.y)*(en1.position.y-en2.position.y) +
                             (en1.position.z-en2.position.z)*(en1.position.z-en2.position.z))};
 
-    // Check if the entities are from the same "frame" and reduce the tolerance if so.
-    if (abs(int(en1.lastUpdateTime.toNSec() - en2.lastUpdateTime.toNSec())) < 50000000)
-        Difference *= 1.5;
-
     // If the distance is furter than the max, we return an infinite value
     if (Difference > MaxDistance ) return DBL_MAX;
 
-    //Difference /= 1+en1.probability*en2.probability/10;
-
+    Difference *= _POSITION_WEIGHT;
     // If the entities are legs or persons, match them more
     if (!en1.name.empty() && !en2.name.empty())
         if (!(en1.name == "person" && en2.name == "legs" || en1.name == "legs" && en2.name == "person" ))
@@ -242,11 +249,10 @@ double DataCollector::CompareEntities(sara_msgs::Entity &en1, sara_msgs::Entity 
 
     // Consider the color of the entities
     if (!en1.color.empty() && !en2.color.empty())
-        Difference += ColorComparison::CompareColors(en1.color, en2.color)*_COLOR_WEIGHT;
+        Difference += (1-ColorComparison::CompareColors(en1.color, en2.color))*_COLOR_WEIGHT;
 
     // Consider the gender of the entities
     Difference += double(!en1.gender.empty() && !en2.gender.empty() & en1.gender != en2.gender)*_GENDER_WEIGHT;
-
     return Difference;
 }
 
@@ -255,14 +261,14 @@ double DataCollector::CompareEntities(sara_msgs::Entity &en1, sara_msgs::Entity 
  * @param Target 		        The target entity on which to merge the source
  * @param Source 		        The source entity to merge on the target
  */
-void DataCollector::MergeEntities(sara_msgs::Entity &Target, sara_msgs::Entity &Source) {
+void DataCollector::MergeEntities(sara_msgs::Entity &Target, sara_msgs::Entity &Source, double ratio) {
 
 
     Target.probability += Source.probability;
 
     Target.ID = Target.ID==0 ? Source.ID : Target.ID;
 
-    // Manage spacial case of persons and legs
+    // Manage special case of persons and legs
     if (Target.name == "legs" && Source.name == "person" || Source.name == "legs" && Target.name == "person")
         Target.name = "person";
     else
@@ -281,12 +287,22 @@ void DataCollector::MergeEntities(sara_msgs::Entity &Target, sara_msgs::Entity &
     if (!Target.direction || Target.direction && Source.direction && Source.probability > Target.probability)
         Target.direction = Source.direction;
 
-    Target.lastUpdateTime = ros::Time::now();
+    Target.lastUpdateTime = Source.lastUpdateTime;
     Target.aliases.insert(Target.aliases.end(), Source.aliases.begin(), Source.aliases.end());
 
-    Target.velocity.x += (-Target.position.x+Source.position.x)/_SPEED_RATIO;
-    Target.velocity.y += (-Target.position.y+Source.position.y)/_SPEED_RATIO;
-    Target.velocity.z += (-Target.position.z+Source.position.z)/_SPEED_RATIO/2;
+    double dx{Source.position.x-Target.position.x};
+    double dy{Source.position.y-Target.position.y};
+    double dz{Source.position.z-Target.position.z};
+    double dist{sqrt(pow(dx,2)+pow(dy,2)+pow(dz,2))};
+
+    double min{sqrt(pow(Target.BoundingBox.Depth,2)+pow(Target.BoundingBox.Height,2)+pow(Target.BoundingBox.Width,2))/2};
+    if (min < 0.05) min = 0.05;
+
+    if (dist < min) dist = min;
+        Target.velocity.x += dx / dist * ratio;
+        Target.velocity.y += dy / dist * ratio;
+        Target.velocity.z += dz / dist * ratio;
+
 
     Target.probability += Source.probability;
 
@@ -333,15 +349,15 @@ void DataCollector::PublishVisualisation() {
                 m.header.frame_id = "/map";
                 m.ns = "entities";
                 m.id = i++;
-                m.type = m.CYLINDER;
+                m.type = m.SPHERE;
                 m.pose.position = en.position;
-                m.scale.x = 0.2;
-                m.scale.y = 0.2;
-                m.scale.z = 0.2;
+                m.scale.x = 0.15;
+                m.scale.y = 0.15;
+                m.scale.z = 0.15;
                 m.color.r = float(1 - en.probability);
                 m.color.g = float(en.probability);
                 m.color.b = 0.1;
-                m.color.a = 0.6;
+                m.color.a = 0.5;
                 markerPublisher.publish(m);
             }
             {  // Publish name on top
@@ -363,7 +379,7 @@ void DataCollector::PublishVisualisation() {
                 m.scale.z = 0.08;
                 m.color.r = 1;
                 m.color.g = 1;
-                m.color.b = 1;
+                m.color.b = 0.0;
                 m.color.a = 1;
                 markerPublisher.publish(m);
             }
@@ -403,13 +419,13 @@ void DataCollector::PublishVisualisation() {
                 m.text = temp;
                 m.pose.position.x = en.position.x;
                 m.pose.position.y = en.position.y;
-                m.pose.position.z = en.position.z + 0.12;
-                m.scale.x = 0.08;
-                m.scale.y = 0.08;
-                m.scale.z = 0.08;
+                m.pose.position.z = en.position.z + 0.10;
+                m.scale.x = 0.12;
+                m.scale.y = 0.12;
+                m.scale.z = 0.12;
                 m.color.r = 1;
                 m.color.g = 1;
-                m.color.b = 1;
+                m.color.b = 0.0;
                 m.color.a = 1;
                 markerPublisher.publish(m);
             }
@@ -449,12 +465,29 @@ void DataCollector::DepthImageCallback(const sensor_msgs::ImageConstPtr& msg) {
 void DataCollector::LegsCallback(people_msgs::PositionMeasurementArray Legs) {
     for (auto legs : Legs.people) {
         if (legs.reliability > 0) {
+            //ROS_INFO("leg ID: %d", legs. );
             sara_msgs::Entity en;
             en.position = legs.pos;
             en.probability = _LEG_MERGE_CUMULATION;
             en.name = "legs";
-            en.lastUpdateTime = ros::Time::now();
-            AddEntity(en, _LEG_MERGE_TOLERANCE, _LEG_MERGE_MAX_DISTANCE);
+            en.lastUpdateTime = legs.header.stamp;
+
+            sara_msgs::Entity *closestEntity{nullptr};
+            double minDiff{_LEG_MERGE_TOLERANCE};
+            // Calculate the weighted resemblances and return the most resemblant one
+            for (auto &en2 : Entities.entities){
+                if (en2.name == "person") {
+                    double dx{en2.position.x - en.position.x};
+                    double dy{en2.position.y - en.position.y};
+                    double dist{sqrt(pow(dx, 2) + pow(dy, 2))};
+
+                    if (dist < 0.1) dist = 0.1;
+                    en2.velocity.x -= dx / dist / dist * _LEG_MERGE_SPEED_RATIO;
+                    en2.velocity.y -= dy / dist / dist * _LEG_MERGE_SPEED_RATIO;
+                    if (dist < _LEG_MERGE_TOLERANCE)
+                        en2.probability += _LEG_MERGE_CUMULATION;
+                }
+            }
         }
     }
 }
@@ -469,10 +502,8 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
     if (!Image || !DepthImage)
         return;
 
-    ros::Time now = ros::Time::now();
-
     // Convert from darknet format to sara format
-    auto BoundingBoxes2D = ConvertBB(msg.boundingBoxes);
+    auto BoundingBoxes2D = ConvertBB(msg);
 
     // Convert the 2D bounding boxes into 3D ones
     wm_frame_to_box::GetBoundingBoxes3D BBService;
@@ -490,22 +521,22 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
     auto Colors = ColorService.response.colors;
 
     // Check if the number of elements matches
-    if (Colors.size() != BoundingBoxes3D.size()) {
+    if (Colors.size() != BoundingBoxes3D.boundingBoxes.size()) {
         ROS_ERROR("An error occurred with Color Recognition! (numbers doesn't match)");
         return;
     }
 
     // Create the entities from the bounding boxes
     int i{0};
-    for (auto &boundingBox : BoundingBoxes3D) {
+    for (auto &boundingBox : BoundingBoxes3D.boundingBoxes) {
 
         sara_msgs::Entity en;
         en.BoundingBox = boundingBox;
         en.name = boundingBox.Class;
         en.position = boundingBox.Center;
         en.probability = boundingBox.probability;
-        en.lastUpdateTime = now;
-        if (Colors.size() == BoundingBoxes3D.size())
+        en.lastUpdateTime = BoundingBoxes3D.header.stamp;
+        if (Colors.size() == BoundingBoxes3D.boundingBoxes.size())
             en.color = Colors[i].color;
         // Looking for the closest entity from the past
         if (en.probability > 0.5) {
@@ -515,11 +546,11 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
             en.probability *= 2;
             if (en.name == "person") {
                 en.position.z = 0;
-                en.probability = _PEOPLE_MERGE_CUMULATION;
-                AddEntity(en, _PEOPLE_MERGE_TOLERANCE, _PEOPLE_MERGE_MAX_DISTANCE);
+                en.probability = _CAMERA_MERGE_PEOPLE_CUMULATION;
+                AddEntity(en, _CAMERA_MERGE_PEOPLE_MERGE_TOLERANCE, _CAMERA_MERGE_MAX_DISTANCE, _CAMERA_MERGE_PEOPLE_SPEED_RATIO);
             }else{
                 en.probability = _CAMERA_MERGE_CUMULATION;
-                AddEntity(en, _CAMERA_MERGE_TOLERANCE, _CAMERA_MERGE_MAX_DISTANCE);
+                AddEntity(en, _CAMERA_MERGE_TOLERANCE, _CAMERA_MERGE_MAX_DISTANCE, _CAMERA_MERGE_SPEED_RATIO);
             }
         } else {
             ROS_WARN("rejecting an entity of name : %s because it's probability is %lf", en.name.c_str(), en.probability);
@@ -534,9 +565,9 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
  * @param DBBs 		Darknet bounding boxes
  * @return BBsOut 		sara bounding boxes
  */
-std::vector<sara_msgs::BoundingBox2D> ConvertBB(std::vector<darknet_ros_msgs::BoundingBox> DBBs) {
-    std::vector<sara_msgs::BoundingBox2D> BBsOut;
-    for (auto DBB : DBBs) {
+sara_msgs::BoundingBoxes2D ConvertBB(darknet_ros_msgs::BoundingBoxes DBBs) {
+    sara_msgs::BoundingBoxes2D BBsOut;
+    for (auto DBB : DBBs.boundingBoxes) {
         sara_msgs::BoundingBox2D BBOut;
         BBOut.Class = DBB.Class;
         BBOut.probability = DBB.probability;
@@ -544,7 +575,8 @@ std::vector<sara_msgs::BoundingBox2D> ConvertBB(std::vector<darknet_ros_msgs::Bo
         BBOut.xmin = DBB.xmin;
         BBOut.ymax = DBB.ymax;
         BBOut.ymin = DBB.ymin;
-        BBsOut.push_back(BBOut);
+        BBsOut.boundingBoxes.push_back(BBOut);
     }
+    BBsOut.header = DBBs.header;
     return BBsOut;
 }

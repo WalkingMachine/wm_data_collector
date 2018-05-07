@@ -1,51 +1,52 @@
-camera_topic: /head_xtion/rgb/image_raw
-depth_camera_topic: /head_xtion/depth/image_raw
-yolo_topic: /darknet_ros/bounding_boxes
-people_topic: /people_tracker_filter
-legs_topic: /leg_tracker_measurements
-entities_marker_topic: /entities_marker
-leg_tolerance: 0.6
-camera_tolerance: 1.0
-people_tolerance: 2.0
-entity_decay: 0.01
-entity_cumulation: 0.2
-entity_friction: 0.8
-name_weight: 2.0
-person_weight: 2.0
-color_weight: 0.2
-gender_weight: 0.6
-publication_threshold: 0.2
-max_probability: 1
-leg_probability_ratio: 0.01
-speed_ratio: 8
+subscribers:
+  camera_topic: /darknet_ros/sync/rgb/image
+  depth_camera_topic: /darknet_ros/sync/depth/image
+  yolo_topic: /darknet_ros/bounding_boxes
+  people_topic: /people_tracker_filter
+  legs_topic: /leg_tracker_measurements
+  entities_marker_topic: /entities_marker
 
 # Entity kinematic parameters
-entity_decay: 0.02
-entity_friction: 0.75
-publication_threshold: 0.2
-max_probability: 1
-speed_ratio: 10
+entities:
+  decay: 0.008
+  friction: 0.8
+  publication_threshold: 0.5
+  max_probability: 1
 
 # post merge parameters
-post_merge_tolerence: 1.0
-post_merge_max_distance: 0.2
-post_merge_person_tolerence_ratio: 0.8
-post_merge_person_max_distance: 0.8
+post_merge:
+  object:
+    tolerence: 1.4
+    max_distance: 0.1
+    speed_ratio: 0.001
+  person:
+    tolerence_ratio: 1
+    person_max_distance: 0.1
+    speed_ratio: 0.001
 
 # leg parameters
-leg_merge_tolerance: 1.0
-leg_merge_max_distance: 0.8
-leg_merge_cumulation: 0.005
+leg_merge:
+  tolerance: 0.4
+  max_distance: 100
+  cumulation: 0.01
+  speed_ratio: 0.01
 
 # Camera parameters
-camera_merge_tolerance: 1.4
-camera_merge_max_distance: 0.4
-camera_merge_cumulation: 0.9
-people_merge_tolerance: 1.5
-people_merge_max_distance: 0.8
-people_merge_cumulation: 0.9
+camera_merge:
+  object:
+    tolerance: 0.28
+    max_distance: 0.8
+    cumulation: 0.018
+    speed_ratio: 0.1
+  people:
+    merge_tolerance: 0.8
+    merge_max_distance: 1.2
+    merge_cumulation: 0.018
+    speed_ratio: 0.3
 
 # Weights parameters
-name_weight: 1
-color_weight: 0.2
-gender_weight: 0.5
+weights:
+  name: 1
+  color: 0.4
+  gender: 0.5
+  position: 0.1
