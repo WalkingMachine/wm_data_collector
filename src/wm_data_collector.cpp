@@ -11,7 +11,7 @@
  */
 int main(int argc, char **argv) {
 
-    ros::init(argc, argv, "wm_data_collector_WITH_FACE");
+    ros::init(argc, argv, "wm_data_collector");
     ros::NodeHandle nodeHandle;
     ROS_INFO("Starting data colector node");
     DataCollector Collector(nodeHandle);
@@ -32,8 +32,6 @@ DataCollector::DataCollector(ros::NodeHandle nh)
     nh.param("subscribers/camera_topic", _CAMERA_TOPIC, std::string("/head_xtion/rgb/image_raw"));
     nh.param("subscribers/depth_camera_topic", _DEPTH_CAMERA_TOPIC, std::string("/head_xtion/depth/image_raw"));
 
-    //nh.param("subscribers/face_camera_topic", _FACE_CAMERA_TOPIC, std::string("/SaraFaceDetector/rgb"));
-    nh.param("subscribers/face_depth_camera_topic", _FACE_DEPTH_CAMERA_TOPIC, std::string("/SaraFaceDetector/depth"));
     nh.param("subscribers/faces", _FACES, std::string("/SaraFaceDetector/face"));
 
     nh.param("subscribers/yolo_topic", _YOLO_TOPIC, std::string("/darknet_ros/bounding_boxes"));
@@ -87,7 +85,6 @@ DataCollector::DataCollector(ros::NodeHandle nh)
     // Subscribers
     imageSubscriber_ = imageTransport_.subscribe(_CAMERA_TOPIC, 1, &DataCollector::ImageCallback, this);
     imageDepthSubscriber_ = imageTransport_.subscribe(_DEPTH_CAMERA_TOPIC, 1, &DataCollector::DepthImageCallback, this);
-    imageFaceDepthSubscriber_ = imageTransport_.subscribe(_FACE_DEPTH_CAMERA_TOPIC, 1, &DataCollector::FacesDepthImageCallback, this);
 
     ros::Subscriber yolo_sub = nh.subscribe(_YOLO_TOPIC, 1, &DataCollector::BoundingBoxCallback, this);
     ros::Subscriber leg_sub = nh.subscribe(_LEGS_TOPIC, 1, &DataCollector::LegsCallback, this);
@@ -263,35 +260,33 @@ double DataCollector::CompareEntities(sara_msgs::Entity &en1, sara_msgs::Entity 
                             (en1.position.y-en2.position.y)*(en1.position.y-en2.position.y) +
                             (en1.position.z-en2.position.z)*(en1.position.z-en2.position.z))};
 
+
+    // If the distance is furter than the max, we return an infinite value
+    if (Difference > MaxDistance ) return DBL_MAX;
+    Difference *= _POSITION_WEIGHT;
+
     // Consider the face of the entities
     if ( !en1.face.id.empty() && !en2.face.id.empty() ) //both have a face
     {
         if(en1.face.id == en2.face.id && Difference < 0.20)
             return 0;
         else
-            return DBL_MAX;
+            Difference += _FACE_WEIGHT;
     }
 
-    // If the distance is furter than the max, we return an infinite value
-    if (Difference > MaxDistance ) return DBL_MAX;
-
-
-    Difference *= _POSITION_WEIGHT;
     // If the entities are legs or persons, match them more
     if (!en1.name.empty() && !en2.name.empty())
         if (!(en1.name == "person" && en2.name == "legs" || en1.name == "legs" && en2.name == "person" ))
             Difference += double(en1.name != en2.name)*_NAME_WEIGHT;
 
     // Consider the color of the entities
-    if (!en1.color.empty() && !en2.color.empty())
+    if ( !(en1.name == "person" || en2.name == "person") && !en1.color.empty() && !en2.color.empty())
         Difference += (1-ColorComparison::CompareColors(en1.color, en2.color))*_COLOR_WEIGHT;
 //
 //    // Consider the gender of the entities
 //    Difference += double(!en1.gender.empty() && !en2.gender.empty() && en1.gender != en2.gender)*_GENDER_WEIGHT;
 
 
-    if (en1.name != "person" && en2.name == "face" || en1.name == "face" && en2.name != "person" ) //a face compare to a non person
-        return DBL_MAX;
 
     return Difference;
 }
@@ -333,7 +328,6 @@ void DataCollector::MergeEntities(sara_msgs::Entity &Target, sara_msgs::Entity &
     //Merge face on person
     if (!Source.face.id.empty())
     {
-        //MyFaceAssignator.Merge(&Source);
         Target.face = Source.face;
         Source.face.id = "";
     }
@@ -564,15 +558,6 @@ void DataCollector::DepthImageCallback(const sensor_msgs::ImageConstPtr& msg) {
     return;
 }
 
-/**
- * Receive a depth image of faces from camera and save it
- * @param msg 		The ros message
- */
-void DataCollector::FacesDepthImageCallback(const sensor_msgs::ImageConstPtr& msg) {
-//    ROS_INFO("image received");
-    FacesDepthImage = msg;
-    return;
-}
 
 /**
  * Receive a list of legs and create entities from them
@@ -684,28 +669,13 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
  * @param msg 		The ros message
  */
 void DataCollector::FacesCallback(sara_msgs::Faces msg) {
-/*
-    if (!FacesDepthImage)
-        return;
-
-    // Convert from darknet format to sara format
-    auto BoundingBoxes2D = FacesToBB(msg);
-
-    // Convert the 2D bounding boxes into 3D ones
-    wm_frame_to_box::GetBoundingBoxes3D BBService;
-    BBService.request.boundingBoxes2D = BoundingBoxes2D;
-    BBService.request.image = *FacesDepthImage;
-    BBService.request.output_frame = "/map";
-    positionClient.call(BBService);
-    auto BoundingBoxes3D = BBService.response.boundingBoxes3D;
-*/
 
     // Create the entities from the bounding boxes
     for (auto face : msg.faces) {
 
         if(face.boundingBox.probability == 0)
         {
-            ROS_WARN("FACE PROBABILITY IS 0");
+            ROS_WARN("Face %s ignored due to a probability of 0", face.id);
             continue;
         }
 
@@ -719,24 +689,24 @@ void DataCollector::FacesCallback(sara_msgs::Faces msg) {
         en.face = face;
 
         int EntityID = MyFaceAssignator.GetEntityByFace(&(en.face));
-        cout<<"ENTITY ID RETROUNER "<<EntityID<<endl;
+
         //if face already associated with an entity
         if (EntityID > 0) {
             sara_msgs::Entity *associatedEntity = GetEntityByID(EntityID);
 
-            if(associatedEntity == nullptr)
-                ROS_ERROR("C'est toujours la merde");
+            if(associatedEntity != nullptr)
+            {
+                associatedEntity->face = en.face;
+                associatedEntity->position = en.position;
+                associatedEntity->position.z = 0;
+                associatedEntity->lastUpdateTime = en.lastUpdateTime;
+                associatedEntity->probability = 1;
+                associatedEntity->velocity.x = 0;
+                associatedEntity->velocity.y = 0;
+                associatedEntity->velocity.z = 0;
+            }
 
-            associatedEntity->face = en.face;
-            associatedEntity->position = en.position;
-            associatedEntity->position.z = 0;
-            associatedEntity->lastUpdateTime = en.lastUpdateTime;
-            associatedEntity->probability = 1;
-            associatedEntity->velocity.x = 0;
-            associatedEntity->velocity.y = 0;
-            associatedEntity->velocity.z = 0;
-
-            return;
+            continue;
         }
 
 
@@ -746,7 +716,7 @@ void DataCollector::FacesCallback(sara_msgs::Faces msg) {
             double Difference{ sqrt((en.position.x-en2.position.x)*(en.position.x-en2.position.x) +
                                     (en.position.y-en2.position.y)*(en.position.y-en2.position.y) +
                                     (en.position.z-en2.position.z)*(en.position.z-en2.position.z))};
-            ROS_ERROR("%lf , %lf",Difference,minDiff);
+
             if (Difference < minDiff && en2.name=="person" && en.lastUpdateTime.nsec != en2.lastUpdateTime.nsec ) {
                 closestEntity = &en2;
                 minDiff = Difference;
@@ -755,7 +725,6 @@ void DataCollector::FacesCallback(sara_msgs::Faces msg) {
         }
 
         if (closestEntity != nullptr) {
-            ROS_INFO("MERGE FACE");
 
             closestEntity->face = en.face;
             closestEntity->position = en.position;
@@ -766,10 +735,8 @@ void DataCollector::FacesCallback(sara_msgs::Faces msg) {
             closestEntity->velocity.y = 0;
             closestEntity->velocity.z = 0;
 
-            ROS_INFO("ADD FACE TO ASSIGNATOR");
-            //cout<<closestEntity->ID<<endl;
+            ROS_INFO("Face %s assigned to entity %d", en.face.id, closestEntity->ID);
             MyFaceAssignator.AddFace(&en.face, closestEntity);
-            //MergeEntities(*closestEntity, en, _CAMERA_MERGE_FACE_SPEED_RATIO);
         }
 
     }
@@ -808,26 +775,3 @@ sara_msgs::BoundingBoxes2D ConvertBB(darknet_ros_msgs::BoundingBoxes DBBs) {
     BBsOut.header = DBBs.header;
     return BBsOut;
 }
-
-/**
- * Receive a list of faces and convert them to sara standard bounding boxes
- * @param
- * @return BBsOut 		sara bounding boxes
- */
-/*
-sara_msgs::BoundingBoxes2D FacesToBB(sara_msgs::Faces faces) {
-    sara_msgs::BoundingBoxes2D BBsOut;
-    for (auto face : faces.faces) {
-        sara_msgs::BoundingBox2D BBOut;
-        BBOut.Class = face.boundingBoxe.Class;
-        BBOut.probability = face.genderProbability;
-        BBOut.xmax = face.boundingBoxe.xmax;
-        BBOut.xmin = face.boundingBoxe.xmin;
-        BBOut.ymax = face.boundingBoxe.ymax;
-        BBOut.ymin = face.boundingBoxe.ymin;
-        BBsOut.boundingBoxes.push_back(BBOut);
-    }
-    BBsOut.header = faces.header;
-    return BBsOut;
-}
-*/
