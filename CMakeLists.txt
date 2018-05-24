@@ -114,7 +114,9 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(${PROJECT_NAME}
         src/wm_data_collector.cpp
-        src/ColorComparator.cpp)
+        src/ColorComparator.cpp
+	src/FaceAssignator.cpp 
+	include/FaceAssignator.h)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above

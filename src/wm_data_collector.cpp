@@ -23,13 +23,17 @@ int main(int argc, char **argv) {
  * DataCollector constructor
  */
 DataCollector::DataCollector(ros::NodeHandle nh)
-: nodeHandle_(nh)
-, imageTransport_(nodeHandle_)
+        : nodeHandle_(nh)
+        , imageTransport_(nodeHandle_)
+        , MyFaceAssignator()
 {
 
     // Get all parameters
     nh.param("subscribers/camera_topic", _CAMERA_TOPIC, std::string("/head_xtion/rgb/image_raw"));
     nh.param("subscribers/depth_camera_topic", _DEPTH_CAMERA_TOPIC, std::string("/head_xtion/depth/image_raw"));
+
+    nh.param("subscribers/faces", _FACES, std::string("/SaraFaceDetector/face"));
+
     nh.param("subscribers/yolo_topic", _YOLO_TOPIC, std::string("/darknet_ros/bounding_boxes"));
     nh.param("subscribers/entities_topic", _ENTITIES, std::string("/entities"));
     nh.param("subscribers/people_topic", _PEOPLE_TOPIC, std::string("/people"));
@@ -65,12 +69,17 @@ DataCollector::DataCollector(ros::NodeHandle nh)
     nh.param("camera_merge/people/max_distance", _CAMERA_MERGE_PEOPLE_MAX_DISTANCE, 0.8);
     nh.param("camera_merge/people/cumulation", _CAMERA_MERGE_PEOPLE_CUMULATION, 0.1);
     nh.param("camera_merge/people/speed_ratio", _CAMERA_MERGE_PEOPLE_SPEED_RATIO, 10.0);
+    nh.param("camera_merge/face/tolerance", _CAMERA_MERGE_FACE_MERGE_TOLERANCE, 0.8);
+    nh.param("camera_merge/face/max_distance", _CAMERA_MERGE_FACE_MAX_DISTANCE, 0.8);
+    nh.param("camera_merge/face/cumulation", _CAMERA_MERGE_FACE_CUMULATION, 0.1);
+    nh.param("camera_merge/face/speed_ratio", _CAMERA_MERGE_FACE_SPEED_RATIO, 10.0);
 
     // Weights parameters
     nh.param("weights/name", _NAME_WEIGHT, 1.0);
     nh.param("weights/color", _COLOR_WEIGHT, 0.6);
     nh.param("weights/gender", _GENDER_WEIGHT, 0.6);
     nh.param("weights/position", _POSITION_WEIGHT, 0.1);
+    nh.param("weights/face", _FACE_WEIGHT, 10.0);
 
     ROS_INFO("subscribing to camera topics");
     // Subscribers
@@ -79,6 +88,7 @@ DataCollector::DataCollector(ros::NodeHandle nh)
 
     ros::Subscriber yolo_sub = nh.subscribe(_YOLO_TOPIC, 1, &DataCollector::BoundingBoxCallback, this);
     ros::Subscriber leg_sub = nh.subscribe(_LEGS_TOPIC, 1, &DataCollector::LegsCallback, this);
+    ros::Subscriber faces_sub = nh.subscribe(_FACES, 1, &DataCollector::FacesCallback, this);
 
     // Service clients
     colorClient = nh.serviceClient<wm_color_detector::AnalyseColor>("get_bounding_boxes_color");
@@ -109,9 +119,16 @@ DataCollector::DataCollector(ros::NodeHandle nh)
  */
 void DataCollector::UpdateEntities() {
 
+    MyFaceAssignator.PrintFaceAssignations();
+
     // Decay entities and remove the old ones
     for (auto &en : Entities.entities)
+    {
         en.probability -= _ENTITY_DECAY;
+        if(en.probability<0)
+            en.probability = 0;
+    }
+
 
     // Limit the probability level
     for (auto &en : Entities.entities)
@@ -130,13 +147,13 @@ void DataCollector::UpdateEntities() {
                 else
                     Difference = CompareEntities(en1, en2, _POST_MERGE_MAX_DISTANCE);
 
-                if (Difference < minDiff) {
+                if (Difference < minDiff ) {
                     closestEntity = &en2;
                     minDiff = Difference;
                 }
             }
         }
-        if (closestEntity != nullptr){
+        if (closestEntity != nullptr && closestEntity->probability>_THRESHOLD){
 
             ROS_INFO("Merging existing entities");
             MergeEntities(en1, *closestEntity, _POST_MERGE_SPEED_RATIO);
@@ -148,7 +165,7 @@ void DataCollector::UpdateEntities() {
 
     int i{0};
     for (auto &en : Entities.entities) {
-        if (en.probability <= 0) {
+        if (en.probability <= 0 && en.face.id.empty() ) {
             ROS_INFO("removing %s %d from list", en.name.c_str(), en.ID);
             Entities.entities.erase(Entities.entities.begin()+i);
             //ROS_INFO("deleting entity");
@@ -203,6 +220,11 @@ void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance, dou
         if (Difference < minDiff){
             closestEntity = &en2;
             minDiff = Difference;
+            if(newEntity.face.id == en2.face.id)
+            {
+                MergeEntities(en2, newEntity, _CAMERA_MERGE_FACE_SPEED_RATIO);
+                return;
+            }
         }
     }
 
@@ -238,21 +260,34 @@ double DataCollector::CompareEntities(sara_msgs::Entity &en1, sara_msgs::Entity 
                             (en1.position.y-en2.position.y)*(en1.position.y-en2.position.y) +
                             (en1.position.z-en2.position.z)*(en1.position.z-en2.position.z))};
 
+
     // If the distance is furter than the max, we return an infinite value
     if (Difference > MaxDistance ) return DBL_MAX;
-
     Difference *= _POSITION_WEIGHT;
+
+    // Consider the face of the entities
+    if ( !en1.face.id.empty() && !en2.face.id.empty() ) //both have a face
+    {
+        if(en1.face.id == en2.face.id && Difference < 0.20)
+            return 0;
+        else
+            Difference += _FACE_WEIGHT;
+    }
+
     // If the entities are legs or persons, match them more
     if (!en1.name.empty() && !en2.name.empty())
         if (!(en1.name == "person" && en2.name == "legs" || en1.name == "legs" && en2.name == "person" ))
             Difference += double(en1.name != en2.name)*_NAME_WEIGHT;
 
     // Consider the color of the entities
-    if (!en1.color.empty() && !en2.color.empty())
+    if ( !(en1.name == "person" || en2.name == "person") && !en1.color.empty() && !en2.color.empty())
         Difference += (1-ColorComparison::CompareColors(en1.color, en2.color))*_COLOR_WEIGHT;
+//
+//    // Consider the gender of the entities
+//    Difference += double(!en1.gender.empty() && !en2.gender.empty() && en1.gender != en2.gender)*_GENDER_WEIGHT;
 
-    // Consider the gender of the entities
-    Difference += double(!en1.gender.empty() && !en2.gender.empty() & en1.gender != en2.gender)*_GENDER_WEIGHT;
+
+
     return Difference;
 }
 
@@ -271,21 +306,40 @@ void DataCollector::MergeEntities(sara_msgs::Entity &Target, sara_msgs::Entity &
     // Manage special case of persons and legs
     if (Target.name == "legs" && Source.name == "person" || Source.name == "legs" && Target.name == "person")
         Target.name = "person";
-    else
+    else if (Target.name == "face" && Source.name == "person" || Source.name == "face" && Target.name == "person"){
+        Target.name = "person";
+    } else
         Target.name = Target.name.empty() ? Source.name : Target.name;
 
     // Merge properties
 
     if (Target.color.empty() || !Target.color.empty() && !Source.color.empty())
         Target.color = Source.color;
-    if (Target.gender.empty() || !Target.gender.empty() && !Source.gender.empty())
-        Target.gender = Source.gender;
-    if (Target.emotion.empty() || !Target.emotion.empty() && !Source.emotion.empty())
-        Target.emotion = Source.emotion;
+//    if (Target.gender.empty() || !Target.gender.empty() && !Source.gender.empty())
+//        Target.gender = Source.gender;
+//    if (Target.emotion.empty() || !Target.emotion.empty() && !Source.emotion.empty())
+//        Target.emotion = Source.emotion;
     if (!Target.BoundingBox.probability || Target.probability && Source.probability)
         Target.BoundingBox = Source.BoundingBox;
-    if (!Target.direction || Target.direction && Source.direction && Source.probability > Target.probability)
-        Target.direction = Source.direction;
+
+    if (Source.face.id.empty())
+        Source.face = Target.face;
+
+    //Merge face on person
+    if (!Source.face.id.empty())
+    {
+        Target.face = Source.face;
+        Source.face.id = "";
+    }
+
+    if(!Source.face.id.empty() && !Target.face.id.empty())
+    {
+        if(Source.face.id != Target.face.id)
+        {
+            MyFaceAssignator.MergeAssignation(Target.ID, Source.ID, Source.face.id);
+        }
+    }
+
 
     Target.lastUpdateTime = Source.lastUpdateTime;
     Target.aliases.insert(Target.aliases.end(), Source.aliases.begin(), Source.aliases.end());
@@ -296,12 +350,16 @@ void DataCollector::MergeEntities(sara_msgs::Entity &Target, sara_msgs::Entity &
     double dist{sqrt(pow(dx,2)+pow(dy,2)+pow(dz,2))};
 
     double min{sqrt(pow(Target.BoundingBox.Depth,2)+pow(Target.BoundingBox.Height,2)+pow(Target.BoundingBox.Width,2))/2};
-    if (min < 0.05) min = 0.05;
+    if (min < 0.2) min = 0.2;
 
     if (dist < min) dist = min;
-        Target.velocity.x += dx / dist * ratio;
-        Target.velocity.y += dy / dist * ratio;
-        Target.velocity.z += dz / dist * ratio;
+
+    Target.velocity.x += dx / dist * ratio;
+    Target.velocity.y += dy / dist * ratio;
+    Target.velocity.z += dz / dist * ratio;
+    Target.position.x += (Source.position.x-Target.position.x)*ratio;
+    Target.position.y += (Source.position.y-Target.position.y)*ratio;
+    Target.position.z += (Source.position.z-Target.position.z)*ratio;
 
 
     Target.probability += Source.probability;
@@ -329,9 +387,8 @@ void DataCollector::MergeEntities(sara_msgs::Entity &Target, sara_msgs::Entity &
         m.color.a = 1;
         markerPublisher.publish(m);
     }
-
-
 }
+
 
 /**
  * Publish the visual clues onto markers for rviz
@@ -429,6 +486,50 @@ void DataCollector::PublishVisualisation() {
                 m.color.a = 1;
                 markerPublisher.publish(m);
             }
+            if (en.face.id != ""){  // Publish faces on over it
+                visualization_msgs::Marker m;
+                m.header.stamp = ros::Time::now();
+                m.lifetime = ros::Duration(0.5);
+                m.header.frame_id = "/map";
+                m.ns = "faceMarker";
+                m.id = i++;
+                m.type = m.SPHERE;
+                m.pose.position = en.position;
+                m.pose.position.z += 0.1;
+                m.scale.x = 0.1;
+                m.scale.y = 0.1;
+                m.scale.z = 0.1;
+                m.color.r = 0;
+                m.color.g = 0;
+                m.color.b = 0;
+                m.color.a = 0.5;
+                markerPublisher.publish(m);
+
+                {  // Publish ID on under it
+                    visualization_msgs::Marker m;
+                    m.header.stamp = ros::Time::now();
+                    m.lifetime = ros::Duration(0.5);
+                    m.header.frame_id = "/map";
+                    m.ns = "faceID";
+                    m.id = i++;
+                    m.type = m.TEXT_VIEW_FACING;
+                    std::string temp;
+                    temp = en.face.id;
+                    m.text = temp;
+                    m.pose.position.x = en.position.x;
+                    m.pose.position.y = en.position.y;
+                    m.pose.position.z = en.position.z + 0.50;
+                    m.scale.x = 0.12;
+                    m.scale.y = 0.12;
+                    m.scale.z = 0.12;
+                    m.color.r = 1;
+                    m.color.g = 1;
+                    m.color.b = 0.0;
+                    m.color.a = 1;
+                    markerPublisher.publish(m);
+                }
+
+            }
         }
     }
 }
@@ -481,11 +582,15 @@ void DataCollector::LegsCallback(people_msgs::PositionMeasurementArray Legs) {
                     double dy{en2.position.y - en.position.y};
                     double dist{sqrt(pow(dx, 2) + pow(dy, 2))};
 
-                    if (dist < 0.1) dist = 0.1;
-                    en2.velocity.x -= dx / dist / dist * _LEG_MERGE_SPEED_RATIO;
-                    en2.velocity.y -= dy / dist / dist * _LEG_MERGE_SPEED_RATIO;
-                    if (dist < _LEG_MERGE_TOLERANCE)
-                        en2.probability += _LEG_MERGE_CUMULATION;
+                    if (dist < 0.5) dist = 0.5;
+                    if (dist < _LEG_MERGE_MAX_DISTANCE){
+                        en2.velocity.x -= dx / dist / dist * _LEG_MERGE_SPEED_RATIO;
+                        en2.velocity.y -= dy / dist / dist * _LEG_MERGE_SPEED_RATIO;
+                        en2.position.x += (en.position.x-en2.position.x)*_LEG_MERGE_SPEED_RATIO;
+                        en2.position.y += (en.position.y-en2.position.y)*_LEG_MERGE_SPEED_RATIO;
+                        if (dist < _LEG_MERGE_TOLERANCE)
+                            en2.probability += _LEG_MERGE_CUMULATION;
+                    }
                 }
             }
         }
@@ -547,7 +652,7 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
             if (en.name == "person") {
                 en.position.z = 0;
                 en.probability = _CAMERA_MERGE_PEOPLE_CUMULATION;
-                AddEntity(en, _CAMERA_MERGE_PEOPLE_MERGE_TOLERANCE, _CAMERA_MERGE_MAX_DISTANCE, _CAMERA_MERGE_PEOPLE_SPEED_RATIO);
+                AddEntity(en, _CAMERA_MERGE_PEOPLE_MERGE_TOLERANCE, _CAMERA_MERGE_PEOPLE_MAX_DISTANCE, _CAMERA_MERGE_PEOPLE_SPEED_RATIO);
             }else{
                 en.probability = _CAMERA_MERGE_CUMULATION;
                 AddEntity(en, _CAMERA_MERGE_TOLERANCE, _CAMERA_MERGE_MAX_DISTANCE, _CAMERA_MERGE_SPEED_RATIO);
@@ -557,6 +662,96 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
         }
         ++i;
     }
+}
+
+/**
+ * Receive a list of faces and create entities from them
+ * @param msg 		The ros message
+ */
+void DataCollector::FacesCallback(sara_msgs::Faces msg) {
+
+    // Create the entities from the bounding boxes
+    for (auto face : msg.faces) {
+
+        if(face.boundingBox.probability == 0)
+        {
+            ROS_WARN("Face %s ignored due to a probability of 0", face.id);
+            continue;
+        }
+
+        sara_msgs::Entity en;
+        en.BoundingBox = face.boundingBox;
+        en.name = "face";
+        en.position = face.boundingBox.Center;
+        en.lastUpdateTime = msg.header.stamp;
+        en.position.z = 0;
+        en.probability = _CAMERA_MERGE_FACE_CUMULATION;
+        en.face = face;
+
+        int EntityID = MyFaceAssignator.GetEntityByFace(&(en.face));
+
+        //if face already associated with an entity
+        if (EntityID > 0) {
+            sara_msgs::Entity *associatedEntity = GetEntityByID(EntityID);
+
+            if(associatedEntity != nullptr)
+            {
+                associatedEntity->face = en.face;
+                associatedEntity->position = en.position;
+                associatedEntity->position.z = 0;
+                associatedEntity->lastUpdateTime = en.lastUpdateTime;
+                associatedEntity->probability = 1;
+                associatedEntity->velocity.x = 0;
+                associatedEntity->velocity.y = 0;
+                associatedEntity->velocity.z = 0;
+            }
+
+            continue;
+        }
+
+
+        sara_msgs::Entity *closestEntity{nullptr};
+        double minDiff{_CAMERA_MERGE_FACE_MAX_DISTANCE};
+        for (auto &en2 : Entities.entities) {
+            double Difference{ sqrt((en.position.x-en2.position.x)*(en.position.x-en2.position.x) +
+                                    (en.position.y-en2.position.y)*(en.position.y-en2.position.y) +
+                                    (en.position.z-en2.position.z)*(en.position.z-en2.position.z))};
+
+            if (Difference < minDiff && en2.name=="person" && en.lastUpdateTime.nsec != en2.lastUpdateTime.nsec ) {
+                closestEntity = &en2;
+                minDiff = Difference;
+            }
+
+        }
+
+        if (closestEntity != nullptr) {
+
+            closestEntity->face = en.face;
+            closestEntity->position = en.position;
+            closestEntity->position.z = 0;
+            closestEntity->lastUpdateTime = en.lastUpdateTime;
+            closestEntity->probability = 1;
+            closestEntity->velocity.x = 0;
+            closestEntity->velocity.y = 0;
+            closestEntity->velocity.z = 0;
+
+            ROS_INFO("Face %s assigned to entity %d", en.face.id, closestEntity->ID);
+            MyFaceAssignator.AddFace(&en.face, closestEntity);
+        }
+
+    }
+
+}
+
+
+sara_msgs::Entity* DataCollector::GetEntityByID( int EntityID )
+{
+    for(int i=0; i<Entities.entities.size(); i++)
+    {
+        if(Entities.entities[i].ID == EntityID)
+            return &Entities.entities[i];
+    }
+    return nullptr;
 }
 
 
