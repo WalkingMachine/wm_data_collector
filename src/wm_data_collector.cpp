@@ -284,7 +284,7 @@ double DataCollector::CompareEntities(sara_msgs::Entity &en1, sara_msgs::Entity 
         Difference += (1-ColorComparison::CompareColors(en1.color, en2.color))*_COLOR_WEIGHT;
 //
 //    // Consider the gender of the entities
-//    Difference += double(!en1.gender.empty() && !en2.gender.empty() && en1.gender != en2.gender)*_GENDER_WEIGHT;
+    Difference += double(!en1.face.id.empty() && !en2.face.id.empty() && en1.face.gender != en2.face.gender)*_GENDER_WEIGHT;
 
 
 
