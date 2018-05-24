@@ -35,14 +35,19 @@ leg_merge:
 camera_merge:
   object:
     tolerance: 0.28
-    max_distance: 0.8
+    max_distance: 0.4
     cumulation: 0.018
     speed_ratio: 0.1
   people:
-    merge_tolerance: 0.8
-    merge_max_distance: 1.2
-    merge_cumulation: 0.018
-    speed_ratio: 0.3
+    tolerance: 0.4
+    max_distance: 0.8
+    cumulation: 0.018
+    speed_ratio: 0.25
+  face:
+    tolerance: 0.8
+    max_distance: 0.4
+    cumulation: 0.5
+    speed_ratio: 0.03
 
 # Weights parameters
 weights:
