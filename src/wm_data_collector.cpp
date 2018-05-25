@@ -119,7 +119,7 @@ DataCollector::DataCollector(ros::NodeHandle nh)
  */
 void DataCollector::UpdateEntities() {
 
-    MyFaceAssignator.PrintFaceAssignations();
+//    MyFaceAssignator.PrintFaceAssignations();
 
     // Decay entities and remove the old ones
     for (auto &en : Entities.entities)
@@ -582,10 +582,10 @@ void DataCollector::LegsCallback(people_msgs::PositionMeasurementArray Legs) {
                     double dy{en2.position.y - en.position.y};
                     double dist{sqrt(pow(dx, 2) + pow(dy, 2))};
 
-                    if (dist < 0.5) dist = 0.5;
+                    double vel{dist < 0.5 ? 0.5 : dist};
                     if (dist < _LEG_MERGE_MAX_DISTANCE){
-                        en2.velocity.x -= dx / dist / dist * _LEG_MERGE_SPEED_RATIO;
-                        en2.velocity.y -= dy / dist / dist * _LEG_MERGE_SPEED_RATIO;
+                        en2.velocity.x -= dx / vel * _LEG_MERGE_SPEED_RATIO;
+                        en2.velocity.y -= dy / vel * _LEG_MERGE_SPEED_RATIO;
                         en2.position.x += (en.position.x-en2.position.x)*_LEG_MERGE_SPEED_RATIO;
                         en2.position.y += (en.position.y-en2.position.y)*_LEG_MERGE_SPEED_RATIO;
                         if (dist < _LEG_MERGE_TOLERANCE)
@@ -675,7 +675,7 @@ void DataCollector::FacesCallback(sara_msgs::Faces msg) {
 
         if(face.boundingBox.probability == 0)
         {
-            ROS_WARN("Face %s ignored due to a probability of 0", face.id);
+            ROS_WARN("Face %s ignored due to a probability of 0", face.id.c_str());
             continue;
         }
 
