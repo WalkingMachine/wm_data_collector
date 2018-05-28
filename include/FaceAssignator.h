@@ -15,7 +15,12 @@ class FaceAssignator{
         string FaceID;
         int EntityID;
     };
+    struct FaceLastTimeSeen {
+        string FaceID;
+        ros::Time LastSeen;
+    };
     vector<FaceAssignation> FaceAssignations;
+    vector<FaceLastTimeSeen> FaceLastTimeSeenVector;
 
 public:
     FaceAssignator();
@@ -24,6 +29,8 @@ public:
     void Merge( sara_msgs::Entity* newEntity );
     void MergeAssignation( int targetEntityID, int sourceEntityID, string sourceFaceID );
     void PrintFaceAssignations();
+    void UpdateFaceLastTimeSeenVector(string FaceId, ros::Time time);
+    ros::Time GetFaceLastUpdateTime(string FaceId);
 };
 
 

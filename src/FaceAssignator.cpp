@@ -57,3 +57,24 @@ void FaceAssignator::PrintFaceAssignations(){
         cout<<"FIN PRINT "<<endl;
     }
 }
+
+void FaceAssignator::UpdateFaceLastTimeSeenVector(string FaceId, ros::Time time){
+    for (auto& face : FaceLastTimeSeenVector) {
+        if (FaceId == face.FaceID) {
+            face.LastSeen = time;
+            return;
+        }
+    }
+    FaceLastTimeSeen newFace;
+    newFace.FaceID = FaceId;
+    newFace.LastSeen = time;
+    FaceLastTimeSeenVector.push_back(newFace);
+}
+
+ros::Time FaceAssignator::GetFaceLastUpdateTime(string FaceId){
+    for (auto& face : FaceLastTimeSeenVector) {
+        if (FaceId == face.FaceID) {
+            return face.LastSeen;
+        }
+    }
+}
