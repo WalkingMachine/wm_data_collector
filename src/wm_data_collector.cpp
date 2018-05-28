@@ -201,7 +201,7 @@ void DataCollector::UpdateEntities() {
         if (en.probability > _THRESHOLD)
             Publication.entities.push_back(en);
 
-    entityPublisher.publish(Entities);
+    entityPublisher.publish(Publication);
 }
 
 
