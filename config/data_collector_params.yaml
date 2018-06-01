@@ -27,8 +27,8 @@ post_merge:
 # leg parameters
 leg_merge:
   tolerance: 1
-  max_distance: 1
-  cumulation: 0.5
+  max_distance: 0.5
+  cumulation: 0.002
   speed_ratio: 0.01
 
 # Camera parameters
@@ -55,3 +55,4 @@ weights:
   color: 0.4
   gender: 0.5
   position: 0.1
+  face: 0.4
