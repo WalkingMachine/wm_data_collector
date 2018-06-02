@@ -154,7 +154,6 @@ void DataCollector::UpdateEntities() {
                     }
                     else
                     {
-                        ROS_ERROR("OK C'EST BON, NOT MERGE");
                         Difference = DBL_MAX;
                     }
 
