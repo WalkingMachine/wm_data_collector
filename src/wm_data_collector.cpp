@@ -143,7 +143,20 @@ void DataCollector::UpdateEntities() {
 
                 double Difference{0};
                 if (en1.name == "person" && en2.name == "person")
-                    Difference = CompareEntities(en1, en2, _POST_MERGE_PEOPLE_MAX_DISTANCE)*_POST_MERGE_PEOPLE_TOLERENCE_RATIO;
+                    if( ( (en1.face.id.empty()
+                           && !en2.face.id.empty()
+                           && ros::Time::now().toSec() - MyFaceAssignator.GetFaceLastUpdateTime(en2.face.id).toSec() < 2))
+                        || ( (!en1.face.id.empty()
+                              && en2.face.id.empty()
+                              && ros::Time::now().toSec() - MyFaceAssignator.GetFaceLastUpdateTime(en1.face.id).toSec() < 2) ) )
+                    {
+                        Difference = CompareEntities(en1, en2, _POST_MERGE_PEOPLE_MAX_DISTANCE)*_POST_MERGE_PEOPLE_TOLERENCE_RATIO;
+                    }
+                    else
+                    {
+                        Difference = DBL_MAX;
+                    }
+
                 else
                     Difference = CompareEntities(en1, en2, _POST_MERGE_MAX_DISTANCE);
 
@@ -201,7 +214,7 @@ void DataCollector::UpdateEntities() {
         if (en.probability > _THRESHOLD)
             Publication.entities.push_back(en);
 
-    entityPublisher.publish(Entities);
+    entityPublisher.publish(Publication);
 }
 
 
@@ -688,6 +701,8 @@ void DataCollector::FacesCallback(sara_msgs::Faces msg) {
         en.probability = _CAMERA_MERGE_FACE_CUMULATION;
         en.face = face;
 
+        MyFaceAssignator.UpdateFaceLastTimeSeenVector(en.face.id, en.lastUpdateTime);
+
         int EntityID = MyFaceAssignator.GetEntityByFace(&(en.face));
 
         //if face already associated with an entity
@@ -728,22 +743,24 @@ void DataCollector::FacesCallback(sara_msgs::Faces msg) {
         }
 
         if (closestEntity != nullptr) {
-
-            closestEntity->face = en.face;
-            closestEntity->position = en.position;
-            closestEntity->position.z = 0;
-            closestEntity->lastUpdateTime = en.lastUpdateTime;
-            closestEntity->probability = 1;
-            closestEntity->velocity.x = 0;
-            closestEntity->velocity.y = 0;
-            closestEntity->velocity.z = 0;
-
-            ROS_INFO("Face %s assigned to entity %d", en.face.id, closestEntity->ID);
-            MyFaceAssignator.AddFace(&en.face, closestEntity);
+            if(!closestEntity->face.id.empty() && (ros::Time::now().toSec() - MyFaceAssignator.GetFaceLastUpdateTime(closestEntity->face.id).toSec()) > 2 )
+            {
+                ROS_INFO("Face %s not assigned to entity %d because face was not seen for more than 2 secondes", en.face.id.c_str(), closestEntity->ID);
+            }
+            else {
+                ROS_INFO("Face %s assigned to entity %d", en.face.id.c_str(), closestEntity->ID);
+                closestEntity->face = en.face;
+                closestEntity->position = en.position;
+                closestEntity->position.z = 0;
+                closestEntity->lastUpdateTime = en.lastUpdateTime;
+                closestEntity->probability = 1;
+                closestEntity->velocity.x = 0;
+                closestEntity->velocity.y = 0;
+                closestEntity->velocity.z = 0;
+                MyFaceAssignator.AddFace(&en.face, closestEntity);
+            }
         }
-
     }
-
 }
 
 
