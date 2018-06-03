@@ -711,7 +711,7 @@ void DataCollector::FacesCallback(sara_msgs::Faces msg) {
 
             if(associatedEntity != nullptr)
             {
-                if(!closestEntity->face.id.empty() && (ros::Time::now().toSec() - MyFaceAssignator.GetFaceLastUpdateTime(closestEntity->face.id).toSec()) < 0.5 )
+                if(!associatedEntity->face.id.empty() && (ros::Time::now().toSec() - MyFaceAssignator.GetFaceLastUpdateTime(associatedEntity->face.id).toSec()) < 0.5 )
                     if(((associatedEntity->position.x-en.position.x)*(associatedEntity->position.x-en.position.x)+(associatedEntity->position.y-en.position.y)*(associatedEntity->position.y-en.position.y)) > _CAMERA_MERGE_FACE_MAX_DISTANCE )
                         continue;
                 associatedEntity->face = en.face;
