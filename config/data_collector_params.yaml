@@ -36,7 +36,7 @@ camera_merge:
   object:
     tolerance: 0.4
     max_distance: 0.4
-    cumulation: 0.2
+    cumulation: 0.8
     speed_ratio: 0.1
   people:
     tolerance: 0.4
