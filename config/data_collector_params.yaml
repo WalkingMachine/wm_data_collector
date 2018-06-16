@@ -29,7 +29,7 @@ leg_merge:
   tolerance: 1
   max_distance: 0.8
   cumulation: 0.004
-  speed_ratio: 0.06
+  speed_ratio: 0.2
 
 # Camera parameters
 camera_merge:

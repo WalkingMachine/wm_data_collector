@@ -5,6 +5,8 @@
 #include "wm_data_collector.h"
 #include <limits>
 #include "ColorComparator.h"
+#include <XmlRpcValue.h>
+
 
 /**
  * Main call. Create the DataCollector object
@@ -12,9 +14,10 @@
 int main(int argc, char **argv) {
 
     ros::init(argc, argv, "wm_data_collector");
-    ros::NodeHandle nodeHandle;
-    ROS_INFO("Starting data colector node");
-    DataCollector Collector(nodeHandle);
+    ros::NodeHandle nh;
+
+    ROS_INFO("Starting data collector node");
+    DataCollector Collector(nh);
 
 }
 
@@ -103,6 +106,7 @@ DataCollector::DataCollector(ros::NodeHandle nh)
     ProceduralID = 1;
 
     ROS_INFO("running");
+
     ros::Rate rate(10.0); // run at 20 hz
     while (ros::ok()){
         UpdateEntities();
@@ -321,8 +325,9 @@ void DataCollector::MergeEntities(sara_msgs::Entity &Target, sara_msgs::Entity &
         Target.name = "person";
     else if (Target.name == "face" && Source.name == "person" || Source.name == "face" && Target.name == "person"){
         Target.name = "person";
-    } else
-        Target.name = Target.name.empty() ? Source.name : Target.name;
+    } else{
+      Target.name = Target.name.empty() ? Source.name : Target.name;
+    }
 
     // Merge properties
 
@@ -651,6 +656,18 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
         sara_msgs::Entity en;
         en.BoundingBox = boundingBox;
         en.name = boundingBox.Class;
+
+        // Add category
+        ros::NodeHandle nh;
+        std::string path;
+        std::string category;
+        path.append("categoryToNames/").append(en.name);
+        std::replace(path.begin(), path.end(), ' ', '_');
+        // ROS_INFO_STREAM(path);
+        nh.param(path,category, string("object"));
+        // ROS_INFO_STREAM(category);
+        en.category = category;
+
         en.position = boundingBox.Center;
         en.probability = boundingBox.probability;
         en.lastUpdateTime = BoundingBoxes3D.header.stamp;
@@ -677,7 +694,6 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
         ++i;
     }
 }
-
 /**
  * Receive a list of faces and create entities from them
  * @param msg 		The ros message

@@ -112,6 +112,7 @@ class DataCollector {
     void LegsCallback(people_msgs::PositionMeasurementArray msg);
     // Receive the Bounding Boxes from Yolo and process them
     void BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg);
+
     // Receive a list of faces and create entities from them
     void FacesCallback(sara_msgs::Faces msg);
 
