@@ -1,7 +1,4 @@
-<launch>
-    <rosparam file="$(find wm_data_collector)/config/data_collector_params.yaml" command="load" />
-    <rosparam>
-    categoryToNames:
+categoryToNames:
         fruit : food
         apple : fruit
         banana : fruit
@@ -21,12 +18,10 @@
         Dr.Pepper : drink
         water : drink
 
-	shape : object
-	sphere : shape
+        #:shape
+        sphere : shape
         ball : shape
         cube : shape
         pyramide : shape
-    </rosparam>
- file="$(find wm_data_collector)/config/categoryToNames.yaml" command="load" />
-	<node  name="wm_data_collector"	pkg="wm_data_collector"	type="wm_data_collector" output="screen"/>
-</launch>
+
+

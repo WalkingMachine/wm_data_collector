@@ -7,16 +7,27 @@
 #include "ColorComparator.h"
 #include <XmlRpcValue.h>
 
+
 /**
  * Main call. Create the DataCollector object
  */
 int main(int argc, char **argv) {
 
     ros::init(argc, argv, "wm_data_collector");
-    ros::NodeHandle nodeHandle;
+    ros::NodeHandle nh;
+
+    std::string path;
+    std::string category;
+    path.append("categoryToNames/").append("apple");
+    ROS_INFO_STREAM(path);
+    nh.param(path,category,std::string("BAD!!"));
+    ROS_INFO_STREAM(category);
+
+    nh.param("subscribers/camera_topic",category,string("BAD!!2"));
+    ROS_INFO_STREAM(category);
 
     ROS_INFO("Starting data collector node");
-    DataCollector Collector(nodeHandle);
+    DataCollector Collector(nh);
 
 }
 
@@ -105,19 +116,6 @@ DataCollector::DataCollector(ros::NodeHandle nh)
     ProceduralID = 1;
 
     ROS_INFO("running");
-
-    XmlRpc::XmlRpcValue categoryToNames;
-    nh.getParam("categoryToNames", categoryToNames);
-    ROS_INFO("Got categoryToNames");
-    //ROS_ASSERT(categoryToNames.getType() == XmlRpc::XmlRpcValue::TypeStruct);
-    for(XmlRpc::XmlRpcValue::ValueStruct::const_iterator it = categoryToNames.begin();
-                                                    it != categoryToNames.end(); ++it) {
-      std::cout << "Found categoryToNames: " << (std::string)(it->first) << " ==> " << categoryToNames[it->first];
-      ROS_INFO("Found categoryToNames: %s ==> %s",(std::string)(it->first), categoryToNames[it->first]);
-      // Do stuff with it:
-      std::cout << "categoryToNames: fruit" << categoryToNames[it->first]["fruit"];
-      std::cout << "fruit: [0]" << categoryToNames[it->first]["fruit"][0];
-    }
 
     ros::Rate rate(10.0); // run at 20 hz
     while (ros::ok()){
@@ -668,6 +666,17 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
         sara_msgs::Entity en;
         en.BoundingBox = boundingBox;
         en.name = boundingBox.Class;
+
+        //Add category
+        ros::NodeHandle nh;
+        std::string path;
+        std::string category;
+        path.append("categoryToNames/").append(en.name);
+        ROS_INFO_STREAM(path);
+        nh.param(path,category, string("object"));
+        ROS_INFO_STREAM(category);
+        en.category = category;
+
         en.position = boundingBox.Center;
         en.probability = boundingBox.probability;
         en.lastUpdateTime = BoundingBoxes3D.header.stamp;
@@ -693,7 +702,6 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
         ++i;
     }
 }
-
 /**
  * Receive a list of faces and create entities from them
  * @param msg 		The ros message
