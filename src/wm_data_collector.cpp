@@ -5,6 +5,7 @@
 #include "wm_data_collector.h"
 #include <limits>
 #include "ColorComparator.h"
+#include <XmlRpcValue.h>
 
 /**
  * Main call. Create the DataCollector object
@@ -13,7 +14,8 @@ int main(int argc, char **argv) {
 
     ros::init(argc, argv, "wm_data_collector");
     ros::NodeHandle nodeHandle;
-    ROS_INFO("Starting data colector node");
+
+    ROS_INFO("Starting data collector node");
     DataCollector Collector(nodeHandle);
 
 }
@@ -103,6 +105,20 @@ DataCollector::DataCollector(ros::NodeHandle nh)
     ProceduralID = 1;
 
     ROS_INFO("running");
+
+    XmlRpc::XmlRpcValue categoryToNames;
+    nh.getParam("categoryToNames", categoryToNames);
+    ROS_INFO("Got categoryToNames");
+    //ROS_ASSERT(categoryToNames.getType() == XmlRpc::XmlRpcValue::TypeStruct);
+    for(XmlRpc::XmlRpcValue::ValueStruct::const_iterator it = categoryToNames.begin();
+                                                    it != categoryToNames.end(); ++it) {
+      std::cout << "Found categoryToNames: " << (std::string)(it->first) << " ==> " << categoryToNames[it->first];
+      ROS_INFO("Found categoryToNames: %s ==> %s",(std::string)(it->first), categoryToNames[it->first]);
+      // Do stuff with it:
+      std::cout << "categoryToNames: fruit" << categoryToNames[it->first]["fruit"];
+      std::cout << "fruit: [0]" << categoryToNames[it->first]["fruit"][0];
+    }
+
     ros::Rate rate(10.0); // run at 20 hz
     while (ros::ok()){
         UpdateEntities();
@@ -321,8 +337,9 @@ void DataCollector::MergeEntities(sara_msgs::Entity &Target, sara_msgs::Entity &
         Target.name = "person";
     else if (Target.name == "face" && Source.name == "person" || Source.name == "face" && Target.name == "person"){
         Target.name = "person";
-    } else
-        Target.name = Target.name.empty() ? Source.name : Target.name;
+    } else{
+      Target.name = Target.name.empty() ? Source.name : Target.name;
+    }
 
     // Merge properties
 
