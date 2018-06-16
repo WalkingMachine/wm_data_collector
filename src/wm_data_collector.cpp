@@ -188,7 +188,7 @@ void DataCollector::UpdateEntities() {
     int i{0};
     for (auto &en : Entities.entities) {
         if (en.probability <= 0 && en.face.id.empty() ) {
-            ROS_INFO("removing %s %d from list", en.name.c_str(), en.ID);
+            ROS_INFO("removing %s %i from list", en.name.c_str(), (int)en.ID);
             Entities.entities.erase(Entities.entities.begin()+i);
             //ROS_INFO("deleting entity");
             i--;
@@ -233,7 +233,6 @@ void DataCollector::PublishEntities(){
     entityPublisher.publish(Publication);
 }
 
-
 /**
  * Add an entity to the list or match it with a corresponding one
  * @param newEntity 		The entity to add
@@ -264,7 +263,7 @@ void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance, dou
         // If not, we simply add the entity to the list
         newEntity.ID = ProceduralID++;
         newEntity.probability = 0.2;
-        ROS_INFO("Adding new entity: %s : %d", newEntity.name.c_str(), newEntity.ID);
+        ROS_INFO("Adding new entity: %s : %i", newEntity.name.c_str(), (int)newEntity.ID);
         Entities.entities.push_back(newEntity);
     }
 }
@@ -344,10 +343,6 @@ void DataCollector::MergeEntities(sara_msgs::Entity &Target, sara_msgs::Entity &
 
     if (Target.color.empty() || !Target.color.empty() && !Source.color.empty())
         Target.color = Source.color;
-//    if (Target.gender.empty() || !Target.gender.empty() && !Source.gender.empty())
-//        Target.gender = Source.gender;
-//    if (Target.emotion.empty() || !Target.emotion.empty() && !Source.emotion.empty())
-//        Target.emotion = Source.emotion;
     if (!Target.BoundingBox.probability || Target.probability && Source.probability)
         Target.BoundingBox = Source.BoundingBox;
 
@@ -469,29 +464,6 @@ void DataCollector::PublishVisualisation() {
                 m.color.a = 1;
                 markerPublisher.publish(m);
             }
-//            {  // Publish probability on top
-//                visualization_msgs::Marker m;
-//                m.header.stamp = ros::Time::now();
-//                m.lifetime = ros::Duration(0.5);
-//                m.header.frame_id = "/map";
-//                m.ns = "entities";
-//                m.id = i++;
-//                m.type = m.TEXT_VIEW_FACING;
-//                std::string temp;
-//                temp = std::to_string(en.probability);
-//                m.text = temp;
-//                m.pose.position.x = en.position.x;
-//                m.pose.position.y = en.position.y;
-//                m.pose.position.z = en.position.z + 0.4;
-//                m.scale.x = 0.1;
-//                m.scale.y = 0.1;
-//                m.scale.z = 0.1;
-//                m.color.r = 1;
-//                m.color.g = 1;
-//                m.color.b = 1;
-//                m.color.a = 1;
-//                markerPublisher.publish(m);
-//            }
             {  // Publish ID on under it
                 visualization_msgs::Marker m;
                 m.header.stamp = ros::Time::now();
@@ -595,7 +567,6 @@ void DataCollector::DepthImageCallback(const sensor_msgs::ImageConstPtr& msg) {
 void DataCollector::LegsCallback(people_msgs::PositionMeasurementArray Legs) {
     for (auto legs : Legs.people) {
         if (legs.reliability > 0) {
-            //ROS_INFO("leg ID: %d", legs. );
             sara_msgs::Entity en;
             en.position = legs.pos;
             en.probability = _LEG_MERGE_CUMULATION;
@@ -674,8 +645,6 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
             en.color = Colors[i].color;
         // Looking for the closest entity from the past
         if (en.probability > 0.5) {
-            // ROS_INFO("adding an entity of name : %s because it's probability is %lf", en.name.c_str(), en.probability);
-
             // If the entity is a person
             en.probability *= 2;
             if (en.name == "person") {
@@ -761,10 +730,10 @@ void DataCollector::FacesCallback(sara_msgs::Faces msg) {
         if (closestEntity != nullptr) {
             if(!closestEntity->face.id.empty() && (ros::Time::now().toSec() - MyFaceAssignator.GetFaceLastUpdateTime(closestEntity->face.id).toSec()) > 2 )
             {
-                ROS_INFO("Face %s not assigned to entity %d because face was not seen for more than 2 secondes", en.face.id.c_str(), closestEntity->ID);
+                ROS_INFO("Face %s not assigned to entity %i because face was not seen for more than 2 secondes", en.face.id.c_str(), (int)closestEntity->ID);
             }
             else {
-                ROS_INFO("Face %s assigned to entity %d", en.face.id.c_str(), closestEntity->ID);
+                ROS_INFO("Face %s assigned to entity %i", en.face.id.c_str(), (int)closestEntity->ID);
                 closestEntity->face = en.face;
                 closestEntity->position = en.position;
                 closestEntity->position.z = 0;
