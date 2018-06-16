@@ -657,7 +657,8 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
         if (Colors.size() == BoundingBoxes3D.boundingBoxes.size())
             en.color = Colors[i].color;
         // Looking for the closest entity from the past
-        if (en.probability > 0.5) {
+        // TODO: replace by a rosparam.
+        if (en.probability > 0.1) {
             // ROS_INFO("adding an entity of name : %s because it's probability is %lf", en.name.c_str(), en.probability);
 
             // If the entity is a person
