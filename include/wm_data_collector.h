@@ -21,6 +21,7 @@
 #include <sstream>
 #include <image_transport/image_transport.h>
 #include "FaceAssignator.h"
+#include "nav_msgs/GetMap.h"
 
 
 std::string _CAMERA_TOPIC;
@@ -99,6 +100,8 @@ class DataCollector {
     image_transport::Subscriber imageFaceDepthSubscriber_;
     image_transport::ImageTransport imageTransport_;
 
+    nav_msgs::OccupancyGrid Map;
+
     int ProceduralID;
 
     // Receive an image from camera
@@ -132,6 +135,12 @@ class DataCollector {
 
     // Merge two entities into one and return the result
     void MergeEntities(sara_msgs::Entity &en1, sara_msgs::Entity &en2, double ratio);
+
+    // Ros publisher
+    void PublishEntities();
+
+    // Get a pixel from map
+    int GetPixelFromMap(nav_msgs::OccupancyGrid &map, double x, double y);
 
     sara_msgs::Entity* GetEntityByID( int EntityID );
 
