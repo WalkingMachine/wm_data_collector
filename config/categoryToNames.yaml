@@ -24,4 +24,6 @@ categoryToNames:
         cube : shape
         pyramide : shape
 
+        person : mob
+
 
