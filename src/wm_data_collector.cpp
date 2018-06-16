@@ -82,6 +82,7 @@ DataCollector::DataCollector(ros::NodeHandle nh)
     nh.param("weights/face", _FACE_WEIGHT, 10.0);
 
     ROS_INFO("subscribing to camera topics");
+
     // Subscribers
     imageSubscriber_ = imageTransport_.subscribe(_CAMERA_TOPIC, 1, &DataCollector::ImageCallback, this);
     imageDepthSubscriber_ = imageTransport_.subscribe(_DEPTH_CAMERA_TOPIC, 1, &DataCollector::DepthImageCallback, this);
@@ -102,10 +103,18 @@ DataCollector::DataCollector(ros::NodeHandle nh)
     // initialyse the procedural ID
     ProceduralID = 1;
 
+    // Read map
+    ros::service::waitForService("static_map");
+    nav_msgs::GetMap msg;
+    ros::service::call("static_map", msg);
+    Map = msg.response.map;
+
+
     ROS_INFO("running");
     ros::Rate rate(10.0); // run at 20 hz
     while (ros::ok()){
         UpdateEntities();
+        PublishEntities();
         PublishVisualisation();
         ros::spinOnce();
         rate.sleep();
@@ -209,9 +218,16 @@ void DataCollector::UpdateEntities() {
         }
     }
 
+}
+
+/**
+ * Publish all entities on ros topic
+ */
+void DataCollector::PublishEntities(){
     sara_msgs::Entities Publication;
+    // filter entities if they where outside of the map
     for (auto &en : Entities.entities)
-        if (en.probability > _THRESHOLD)
+        if (en.probability > _THRESHOLD && this->GetPixelFromMap(this->Map, en.position.x, en.position.y)==0)
             Publication.entities.push_back(en);
 
     entityPublisher.publish(Publication);
@@ -772,6 +788,18 @@ sara_msgs::Entity* DataCollector::GetEntityByID( int EntityID )
             return &Entities.entities[i];
     }
     return nullptr;
+}
+
+int DataCollector::GetPixelFromMap(nav_msgs::OccupancyGrid &map, double x, double y){
+    x = (x-map.info.origin.position.x)/map.info.resolution;
+    y = (y-map.info.origin.position.y)/map.info.resolution;
+
+    x = x > 0 ? x : 0;
+    x = x < map.info.width ? x : map.info.width;
+    y = y > 0 ? y : 0;
+    y = y < map.info.height ? y : map.info.height;
+
+    return map.data[int(y) * map.info.width + int(x)];
 }
 
 
