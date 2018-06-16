@@ -16,16 +16,6 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "wm_data_collector");
     ros::NodeHandle nh;
 
-    std::string path;
-    std::string category;
-    path.append("categoryToNames/").append("apple");
-    ROS_INFO_STREAM(path);
-    nh.param(path,category,std::string("BAD!!"));
-    ROS_INFO_STREAM(category);
-
-    nh.param("subscribers/camera_topic",category,string("BAD!!2"));
-    ROS_INFO_STREAM(category);
-
     ROS_INFO("Starting data collector node");
     DataCollector Collector(nh);
 
@@ -667,14 +657,14 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
         en.BoundingBox = boundingBox;
         en.name = boundingBox.Class;
 
-        //Add category
+        // Add category
         ros::NodeHandle nh;
         std::string path;
         std::string category;
         path.append("categoryToNames/").append(en.name);
-        ROS_INFO_STREAM(path);
+        // ROS_INFO_STREAM(path);
         nh.param(path,category, string("object"));
-        ROS_INFO_STREAM(category);
+        // ROS_INFO_STREAM(category);
         en.category = category;
 
         en.position = boundingBox.Center;
