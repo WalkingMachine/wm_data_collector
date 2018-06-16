@@ -662,6 +662,7 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
         std::string path;
         std::string category;
         path.append("categoryToNames/").append(en.name);
+        std::replace(path.begin(), path.end(), ' ', '_');
         // ROS_INFO_STREAM(path);
         nh.param(path,category, string("object"));
         // ROS_INFO_STREAM(category);
