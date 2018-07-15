@@ -1,7 +1,7 @@
 subscribers:
   camera_topic: /darknet_ros/sync/rgb/image
   depth_camera_topic: /darknet_ros/sync/depth/image
-  yolo_topic: /darknet_ros/bounding_boxes
+  yolo_topic: /darknet_ros/bounding_boxes3D
   people_topic: /people_tracker_filter
   legs_topic: /people_tracker_measurements
   entities_marker_topic: /entities_marker
