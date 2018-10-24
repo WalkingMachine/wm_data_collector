@@ -237,7 +237,7 @@ void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance, dou
         if (Difference < minDiff){
             closestEntity = &en2;
             minDiff = Difference;
-            if(newEntity.face.id == en2.face.id)
+            if(newEntity.face.id == en2.face.id && !newEntity.face.id.empty())
             {
                 MergeEntities(en2, newEntity, _CAMERA_MERGE_FACE_SPEED_RATIO);
                 return;
