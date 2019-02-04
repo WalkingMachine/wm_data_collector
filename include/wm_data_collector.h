@@ -9,7 +9,6 @@
 #include "std_msgs/String.h"
 #include "sensor_msgs/Image.h"
 #include "wm_color_detector/AnalyseColor.h"
-#include "darknet_ros_msgs/BoundingBoxes.h"
 #include "sara_msgs/BoundingBox2D.h"
 #include "sara_msgs/BoundingBoxes3D.h"
 #include "wm_frame_to_box/GetBoundingBoxes3D.h"
@@ -111,7 +110,7 @@ class DataCollector {
     // Receive the Bounding Boxes from Yolo and process then
     void LegsCallback(people_msgs::PositionMeasurementArray msg);
     // Receive the Bounding Boxes from Yolo and process them
-    void BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg);
+    void BoundingBoxCallback(sara_msgs::BoundingBoxes3D msg);
 
     // Receive a list of faces and create entities from them
     void FacesCallback(sara_msgs::Faces msg);
@@ -142,7 +141,6 @@ public:
 
 };
 
-sara_msgs::BoundingBoxes2D ConvertBB(darknet_ros_msgs::BoundingBoxes);
 //sara_msgs::BoundingBoxes2D FacesToBB(sara_msgs::Faces faces);
 
 #endif //PROJECT_WM_DATA_COLLECTOR_NODE_H

@@ -41,14 +41,12 @@
 
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>sensor_msgs</build_export_depend>
-  <build_export_depend>darknet_ros_msgs</build_export_depend>
   <build_export_depend>wm_color_detector</build_export_depend>
   <build_export_depend>sara_msgs</build_export_depend>
   <build_export_depend>people_msgs</build_export_depend>
 
   <exec_depend>roscpp</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
-  <exec_depend>darknet_ros_msgs</exec_depend>
   <exec_depend>wm_color_detector</exec_depend>
   <exec_depend>sara_msgs</exec_depend>
   <exec_depend>people_msgs</exec_depend>

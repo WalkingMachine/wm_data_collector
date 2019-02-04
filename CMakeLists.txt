@@ -10,7 +10,6 @@ add_compile_options(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
         roscpp
         sensor_msgs
-        darknet_ros_msgs
         sara_msgs
         image_transport
         message_generation
@@ -93,7 +92,6 @@ catkin_package(
         CATKIN_DEPENDS
         roscpp
         sensor_msgs
-        darknet_ros_msgs
         wm_color_detector
         people_msgs
 )

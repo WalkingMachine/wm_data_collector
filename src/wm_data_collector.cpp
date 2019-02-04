@@ -237,7 +237,7 @@ void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance, dou
         if (Difference < minDiff){
             closestEntity = &en2;
             minDiff = Difference;
-            if(newEntity.face.id == en2.face.id)
+            if(newEntity.face.id == en2.face.id && !newEntity.face.id.empty())
             {
                 MergeEntities(en2, newEntity, _CAMERA_MERGE_FACE_SPEED_RATIO);
                 return;
@@ -620,34 +620,23 @@ void DataCollector::LegsCallback(people_msgs::PositionMeasurementArray Legs) {
  * Receive a list of bounding boxes and create entities from them
  * @param msg 		The ros message
  */
-void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
+void DataCollector::BoundingBoxCallback(sara_msgs::BoundingBoxes3D BoundingBoxes3D) {
 
     if (!Image || !DepthImage)
         return;
 
-    // Convert from darknet format to sara format
-    auto BoundingBoxes2D = ConvertBB(msg);
+//    // Get the colors indentification
+//    wm_color_detector::AnalyseColor ColorService;
+//    ColorService.request.boundingBoxes = BoundingBoxes2D;
+//    ColorService.request.image = *Image;
+//    colorClient.call(ColorService);
+//    auto Colors = ColorService.response.colors;
 
-    // Convert the 2D bounding boxes into 3D ones
-    wm_frame_to_box::GetBoundingBoxes3D BBService;
-    BBService.request.boundingBoxes2D = BoundingBoxes2D;
-    BBService.request.image = *DepthImage;
-    BBService.request.output_frame = "/map";
-    positionClient.call(BBService);
-    auto BoundingBoxes3D = BBService.response.boundingBoxes3D;
-
-    // Get the colors indentification
-    wm_color_detector::AnalyseColor ColorService;
-    ColorService.request.boundingBoxes = BoundingBoxes2D;
-    ColorService.request.image = *Image;
-    colorClient.call(ColorService);
-    auto Colors = ColorService.response.colors;
-
-    // Check if the number of elements matches
-    if (Colors.size() != BoundingBoxes3D.boundingBoxes.size()) {
-        ROS_ERROR("An error occurred with Color Recognition! (numbers doesn't match)");
-        return;
-    }
+//    // Check if the number of elements matches
+//    if (Colors.size() != BoundingBoxes3D.boundingBoxes.size()) {
+//        ROS_ERROR("An error occurred with Color Recognition! (numbers doesn't match)");
+//        return;
+//    }
 
     // Create the entities from the bounding boxes
     int i{0};
@@ -671,8 +660,8 @@ void DataCollector::BoundingBoxCallback(darknet_ros_msgs::BoundingBoxes msg) {
         en.position = boundingBox.Center;
         en.probability = boundingBox.probability;
         en.lastUpdateTime = BoundingBoxes3D.header.stamp;
-        if (Colors.size() == BoundingBoxes3D.boundingBoxes.size())
-            en.color = Colors[i].color;
+//        if (Colors.size() == BoundingBoxes3D.boundingBoxes.size())
+//            en.color = Colors[i].color;
         // Looking for the closest entity from the past
         // TODO: replace by a rosparam.
         if (en.probability > 0.1) {
@@ -788,24 +777,3 @@ sara_msgs::Entity* DataCollector::GetEntityByID( int EntityID )
     return nullptr;
 }
 
-
-/**
- * Receive a list of bounding boxes from Darknet and convert them to sara standard bounding boxes
- * @param DBBs 		Darknet bounding boxes
- * @return BBsOut 		sara bounding boxes
- */
-sara_msgs::BoundingBoxes2D ConvertBB(darknet_ros_msgs::BoundingBoxes DBBs) {
-    sara_msgs::BoundingBoxes2D BBsOut;
-    for (auto DBB : DBBs.boundingBoxes) {
-        sara_msgs::BoundingBox2D BBOut;
-        BBOut.Class = DBB.Class;
-        BBOut.probability = DBB.probability;
-        BBOut.xmax = DBB.xmax;
-        BBOut.xmin = DBB.xmin;
-        BBOut.ymax = DBB.ymax;
-        BBOut.ymin = DBB.ymin;
-        BBsOut.boundingBoxes.push_back(BBOut);
-    }
-    BBsOut.header = DBBs.header;
-    return BBsOut;
-}
