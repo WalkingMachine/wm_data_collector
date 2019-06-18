@@ -207,6 +207,7 @@ void DataCollector::UpdateEntities() {
             person.pos.y = en.position.y;
             person.object_id = en.ID;
             person.initialization = 0;
+            person.reliability = 0.75;
             person.name = en.name;
             person.reliability = en.probability;
             peoplePublisher.publish(person);
@@ -269,8 +270,10 @@ void DataCollector::AddEntity(sara_msgs::Entity newEntity, double tolerance, dou
 double DataCollector::CompareEntities(sara_msgs::Entity &en1, sara_msgs::Entity &en2, double MaxDistance=1) {
 
     // Check if the entities are from the same "frame".
-    if (en1.lastUpdateTime == en2.lastUpdateTime && (en1.name != "leg" || en2.name != "leg"))
-        return DBL_MAX;
+//    if (en1.lastUpdateTime - en2.lastUpdateTime < ros::Duration(0.05) && (en1.name != "leg" || en2.name != "leg")){
+//        ROS_INFO("Same frame");
+//        return DBL_MAX;
+//    }
 
     // Get the distance between the entities
     double Difference{ sqrt((en1.position.x-en2.position.x)*(en1.position.x-en2.position.x) +

@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<package format="2">
+<package>
   <name>wm_data_collector</name>
   <version>1.0.0</version>
   <description>Collect all possibles data from the environment to the local database</description>
@@ -38,19 +38,15 @@
   <build_depend>sara_msgs</build_depend>
   <build_depend>people_msgs</build_depend>
   <build_depend>image_transport</build_depend>
+  <build_depend>message_runtime</build_depend>
 
-  <build_export_depend>roscpp</build_export_depend>
-  <build_export_depend>sensor_msgs</build_export_depend>
-  <build_export_depend>wm_color_detector</build_export_depend>
-  <build_export_depend>sara_msgs</build_export_depend>
-  <build_export_depend>people_msgs</build_export_depend>
-
-  <exec_depend>roscpp</exec_depend>
-  <exec_depend>sensor_msgs</exec_depend>
-  <exec_depend>wm_color_detector</exec_depend>
-  <exec_depend>sara_msgs</exec_depend>
-  <exec_depend>people_msgs</exec_depend>
-  <exec_depend>image_transport</exec_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>wm_color_detector</run_depend>
+  <run_depend>sara_msgs</run_depend>
+  <run_depend>people_msgs</run_depend>
+  <run_depend>image_transport</run_depend>
+  <run_depend>message_runtime</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
         message_generation
         people_msgs
 )
+#find_package(wm_color_detector)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -89,11 +90,13 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
+        LIBRARIES wm_data_collector
         CATKIN_DEPENDS
         roscpp
         sensor_msgs
-        wm_color_detector
+		wm_color_detector
         people_msgs
+        message_runtime
 )
 
 ###########
